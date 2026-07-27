@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Document Template Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+    <style>
+        /* CSS STYLES */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #f0f2f5; padding: 20px; transition: background 0.3s; }
+        .dashboard { max-width: 1200px; margin: 0 auto; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 28px; border-radius: 16px; margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+        }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .stats-bar { grid-template-columns: repeat(2, 1fr) !important; } }
+        
+        .card { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 16px; }
+        .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; }
+        .card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        
+        /* Stats Dashboard */
+        .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+        .stat-box { background: white; border-radius: 12px; padding: 16px; text-align: center; border: 1px solid #e2e8f0; }
+        .stat-num { font-size: 28px; font-weight: 700; color: #667eea; }
+        .stat-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600; }
+
+        .btn { padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: 0.2s; }
+        .doc-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 8px; }
+        .doc-info { flex: 1; }
+        .doc-name { font-weight: 600; font-size: 13px; color: #1e293b; }
+        .doc-link { font-size: 11px; text-decoration: none; padding: 4px 8px; border-radius: 4px; background: #e0e7ff; color: #4338ca; }
+        
+        .note-box textarea { width: 100%; min-height: 60px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 5px; font-family: inherit; }
+        
+        /* Dark Mode */
+        body.dark-mode { background: #0f172a; color: white; }
+        body.dark-mode .card, body.dark-mode .stat-box { background: #1e293b; border-color: #334155; }
+        body.dark-mode .doc-item { background: #334155; border-color: #475569; }
+        body.dark-mode .doc-name { color: #f1f5f9; }
+
+        /* Login Overlay */
+        #login-overlay { position: fixed; inset: 0; background: linear-gradient(135deg, #667eea, #764ba2); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .login-card { background: white; padding: 40px; border-radius: 20px; text-align: center; max-width: 400px; width: 90%; color: #333; }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN OVERLAY -->
+    <div id="login-overlay">
+        <div class="login-card">
+            <h1>🔐</h1>
+            <h2 id="login-title">HR Document Hub</h2>
+            <p id="login-subtitle">Mag-sign in gamit ang Google</p>
+            <div id="signin-step">
+                <button onclick="signInWithGoogle()" class="btn" style="background:#4285F4; color:white; width:100%; margin-top:20px;">Sign in with Google</button>
+            </div>
+            <div id="pending-step" style="display:none;">
+                <p>Waiting for Admin Approval...</p>
+                <button onclick="location.reload()" class="btn">Check Status</button>
+            </div>
+            <p id="login-loading" style="margin-top:10px; font-size:12px; color:gray;">Checking status...</p>
+        </div>
+    </div>
+
+    <div class="dashboard">
+        <!-- Top Bar -->
+        <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:center;">
+            <input type="text" id="global-search" placeholder="🔍 Search documents..." 
+                   style="flex:1; padding:12px; border-radius:10px; border:1px solid #ddd;" oninput="handleSearch(this.value)">
+            <button class="btn" style="background:#1e293b; color:white;" onclick="toggleDarkMode()" id="dark-mode-btn">🌙 Dark</button>
+            <button class="btn" style="background:#fee2e2; color:#991b1b;" onclick="signOut()">🔒 Sign Out</button>
+        </div>
+
+        <div class="header">
+            <h1>📋 Human Resource Document Template Hub</h1>
+            <p>Official repository for Recruitment, Onboarding, and HR Records</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-bar">
+            <div class="stat-box"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Documents</div></div>
+            <div class="stat-box"><div class="stat-num" id="stat-linked">0</div><div class="stat-label">With Links</div></div>
+            <div class="stat-box"><div class="stat-num" id="stat-cats">7</div><div class="stat-label">Categories</div></div>
+            <div class="stat-box"><div class="stat-num" id="stat-notes">0</div><div class="stat-label">Notes</div></div>
+        </div>
+
+        <div class="grid" id="main-grid">
+            <!-- Recruitment -->
+            <div class="card">
+                <div class="card-header"><div class="card-icon" style="background:#dbeafe;">🎯</div><div><strong>Recruitment</strong></div></div>
+                <div id="list-recruit"></div>
+                <div class="note-box"><textarea id="notes-recruit" placeholder="Recruitment notes..."></textarea></div>
+            </div>
+            <!-- Onboarding -->
+            <div class="card">
+                <div class="card-header"><div class="card-icon" style="background:#dcfce7;">🚀</div><div><strong>Onboarding</strong></div></div>
+                <div id="list-onboard"></div>
+                <div class="note-box"><textarea id="notes-onboard" placeholder="Onboarding notes..."></textarea></div>
+            </div>
+            <!-- Dagdagan mo na lang dito ang ibang cards base sa format sa itaas -->
+        </div>
+    </div>
+
+    <script>
+        // ======= CONFIGURATION =======
+        // PALITAN MO ITO NG SARILI MONG CONFIG MULA SA FIREBASE CONSOLE
+        const firebaseConfig = {
+            apiKey: "AIzaSyC56Lz-YNTMEE583yvsWB6eu2TWu9LmDGg", 
+            authDomain: "hr-document-hub-5cc7c.firebaseapp.com",
+            projectId: "hr-document-hub-5cc7c",
+            storageBucket: "hr-document-hub-5cc7c.firebasestorage.app",
+            messagingSenderId: "157915059392",
+            appId: "1:157915059392:web:ac5bb735869c218f644925"
+        };
+
+        const ADMIN_EMAILS = ['humanresource.iengoc@gmail.com', 'admn.iencc@gmail.com'];
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let appData = {
+            recruit: { documents: [{id:1, name:'Interview Script', link:''}], notes: '' },
+            onboard: { documents: [{id:1, name:'Employment Contract', link:''}], notes: '' }
+        };
+
+        // ======= AUTH LOGIC =======
+        auth.onAuthStateChanged(async user => {
+            document.getElementById('login-loading').style.display = 'none';
+            if (!user) {
+                document.getElementById('login-overlay').style.display = 'flex';
+                return;
+            }
+
+            const email = user.email.toLowerCase();
+            if (ADMIN_EMAILS.includes(email)) {
+                unlockApp();
+            } else {
+                checkApproval(email);
+            }
+        });
+
+        async function checkApproval(email) {
+            const doc = await db.collection('approvedUsers').doc(email).get();
+            if (doc.exists) {
+                unlockApp();
+            } else {
+                document.getElementById('signin-step').style.display = 'none';
+                document.getElementById('pending-step').style.display = 'block';
+                // Auto request access
+                db.collection('accessRequests').doc(email).set({
+                    email: email,
+                    status: 'pending',
+                    requestedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        }
+
+        function unlockApp() {
+            document.getElementById('login-overlay').style.display = 'none';
+            loadData();
+        }
+
+        function signInWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider);
+        }
+
+        function signOut() {
+            auth.signOut().then(() => location.reload());
+        }
+
+        // ======= DATA LOGIC =======
+        function loadData() {
+            db.collection('hrHub').doc('sharedData').onSnapshot(doc => {
+                if (doc.exists) {
+                    appData = JSON.parse(doc.data().json);
+                    renderAll();
+                }
+            });
+        }
+
+        function renderAll() {
+            renderSection('recruit', appData.recruit.documents);
+            renderSection('onboard', appData.onboard.documents);
+            updateStats();
+        }
+
+        function renderSection(id, docs) {
+            const container = document.getElementById('list-' + id);
+            if(!container) return;
+            container.innerHTML = docs.map(d => `
+                <div class="doc-item">
+                    <div class="doc-info">
+                        <div class="doc-name">${d.name}</div>
+                    </div>
+                    <a href="${d.link || '#'}" class="doc-link">${d.link ? 'Open' : 'No Link'}</a>
+                </div>
+            `).join('');
+        }
+
+        function updateStats() {
+            document.getElementById('stat-total').textContent = (appData.recruit.documents.length + appData.onboard.documents.length);
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        function handleSearch(q) {
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(c => {
+                const text = c.innerText.toLowerCase();
+                c.style.display = text.includes(q.toLowerCase()) ? '' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>
