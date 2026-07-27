@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Document Template Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs (Compat Version for Browser) -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #f0f2f5; padding: 20px; color: #1e293b; }
+        .dashboard { max-width: 1200px; margin: 0 auto; }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 30px; border-radius: 16px; margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Stats */
+        .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        .stat-box { background: white; border-radius: 12px; padding: 20px; text-align: center; border: 1px solid #e2e8f0; }
+        .stat-num { font-size: 28px; font-weight: 700; color: #667eea; }
+        .stat-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 600; margin-top: 5px; }
+
+        /* Grid */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } .stats-bar { grid-template-columns: 1fr 1fr; } }
+
+        .card { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; }
+        .card-title { font-weight: 700; font-size: 16px; }
+
+        .doc-item { 
+            display: flex; align-items: center; gap: 10px; padding: 12px; 
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 8px; 
+        }
+        .doc-info { flex: 1; }
+        .doc-name { font-weight: 600; font-size: 13px; }
+        .doc-link { 
+            font-size: 11px; text-decoration: none; padding: 6px 12px; 
+            border-radius: 6px; background: #667eea; color: white; font-weight: 600;
+        }
+
+        .note-box { margin-top: 15px; }
+        .note-box label { font-size: 11px; font-weight: 700; color: #64748b; }
+        .note-box textarea { 
+            width: 100%; min-height: 80px; padding: 10px; border: 1px solid #e2e8f0; 
+            border-radius: 8px; margin-top: 5px; font-family: inherit; resize: vertical;
+        }
+
+        /* Login Overlay */
+        #login-overlay { 
+            position: fixed; inset: 0; background: #667eea; z-index: 9999; 
+            display: flex; align-items: center; justify-content: center; 
+        }
+        .login-card { background: white; padding: 40px; border-radius: 20px; text-align: center; max-width: 400px; width: 90%; }
+        .btn-google { 
+            background: white; border: 1px solid #dadce0; padding: 12px 24px; 
+            border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; 
+            align-items: center; gap: 10px; margin: 20px auto; width: 100%; justify-content: center;
+        }
+
+        #sync-status { position: fixed; top: 10px; right: 10px; font-size: 12px; background: #1e293b; color: white; padding: 5px 10px; border-radius: 5px; opacity: 0; transition: 0.3s; }
+    </style>
+</head>
+<body>
+
+    <div id="sync-status">Saving...</div>
+
+    <!-- Login Screen -->
+    <div id="login-overlay">
+        <div class="login-card">
+            <h1 style="font-size: 40px; margin-bottom: 10px;">🔐</h1>
+            <h2>HR Document Hub</h2>
+            <p style="color: #64748b; margin-top: 5px;">Access restricted to authorized personnel.</p>
+            <div id="signin-controls">
+                <button class="btn-google" onclick="signInWithGoogle()">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18">
+                    Sign in with Google
+                </button>
+            </div>
+            <div id="pending-msg" style="display:none; color: #b91c1c; margin-top: 20px; font-weight: 600;">
+                Waiting for Admin Approval...
+            </div>
+            <p id="loading-txt" style="margin-top: 15px; font-size: 12px;">Initializing...</p>
+        </div>
+    </div>
+
+    <div class="dashboard">
+        <!-- Top Toolbar -->
+        <div style="display:flex; justify-content: space-between; margin-bottom: 20px; align-items: center;">
+            <input type="text" id="search" placeholder="🔍 Search documents..." 
+                   style="padding: 12px; border-radius: 10px; border: 1px solid #ddd; width: 300px;" oninput="searchDocs(this.value)">
+            <button onclick="signOut()" style="background: #fee2e2; color: #b91c1c; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">Sign Out</button>
+        </div>
+
+        <div class="header">
+            <h1>📋 Human Resource Document Template Hub</h1>
+            <p>Master repository for hiring, onboarding, and employee records.</p>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat-box"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Documents</div></div>
+            <div class="stat-box"><div class="stat-num" id="stat-linked">0</div><div class="stat-label">With Links</div></div>
+            <div class="stat-box"><div class="stat-num">7</div><div class="stat-label">Main Categories</div></div>
+            <div class="stat-box"><div class="stat-num" id="stat-notes">0</div><div class="stat-label">Notes Saved</div></div>
+        </div>
+
+        <div class="grid" id="content-grid">
+            <!-- Content generated by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        // ======= FIREBASE CONFIGURATION =======
+        const firebaseConfig = {
+            apiKey: "AIzaSyCNwgdPiaX9bXEQIVrUlFdXGzbYIWPWW-0",
+            authDomain: "hr-document-hub-ed893.firebaseapp.com",
+            projectId: "hr-document-hub-ed893",
+            storageBucket: "hr-document-hub-ed893.firebasestorage.app",
+            messagingSenderId: "940782500305",
+            appId: "1:940782500305:web:37980edb858426c12548f0"
+        };
+
+        const ADMIN_EMAILS = ['humanresource.iengoc@gmail.com', 'admn.iencc@gmail.com'];
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let appData = {
+            recruit: { title: "Recruitment", icon: "🎯", docs: [{name: "Interview Script", link: ""}, {name: "Job Description - HR", link: ""}], notes: "" },
+            onboard: { title: "Onboarding", icon: "🚀", docs: [{name: "Employment Contract", link: ""}, {name: "Information Sheet", link: ""}], notes: "" },
+            offboard: { title: "Offboarding", icon: "🚪", docs: [{name: "Resignation Acceptance", link: ""}, {name: "Exit Interview Form", link: ""}], notes: "" },
+            files: { title: "201 Files", icon: "📁", docs: [{name: "Employee Profile", link: ""}, {name: "Performance Evaluation", link: ""}], notes: "" },
+            discipline: { title: "Discipline", icon: "⚖️", docs: [{name: "Notice to Explain", link: ""}, {name: "Warning Letter", link: ""}], notes: "" },
+            attendance: { title: "Attendance", icon: "⏰", docs: [{name: "Daily Time Record", link: ""}, {name: "Overtime Form", link: ""}], notes: "" },
+            leave: { title: "Leave Credits", icon: "🌴", docs: [{name: "Leave Application", link: ""}, {name: "Credit Tracker", link: ""}], notes: "" }
+        };
+
+        // ======= AUTHENTICATION =======
+        auth.onAuthStateChanged(async user => {
+            document.getElementById('loading-txt').style.display = 'none';
+            if (!user) {
+                document.getElementById('login-overlay').style.display = 'flex';
+                return;
+            }
+
+            const email = user.email.toLowerCase();
+            if (ADMIN_EMAILS.includes(email)) {
+                startApp();
+            } else {
+                const doc = await db.collection('approvedUsers').doc(email).get();
+                if (doc.exists) {
+                    startApp();
+                } else {
+                    document.getElementById('signin-controls').style.display = 'none';
+                    document.getElementById('pending-msg').style.display = 'block';
+                    // Request access automatically
+                    db.collection('accessRequests').doc(email).set({ email, requestedAt: new Date(), status: 'pending' });
+                }
+            }
+        });
+
+        function signInWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider);
+        }
+
+        function signOut() {
+            auth.signOut().then(() => location.reload());
+        }
+
+        // ======= APP LOGIC =======
+        function startApp() {
+            document.getElementById('login-overlay').style.display = 'none';
+            
+            // Listen for changes
+            db.collection('hrHub').doc('sharedData').onSnapshot(doc => {
+                if (doc.exists) {
+                    appData = JSON.parse(doc.data().json);
+                    renderAll();
+                } else {
+                    saveToFirebase(); // Seed initial data
+                }
+            });
+        }
+
+        function renderAll() {
+            const grid = document.getElementById('content-grid');
+            grid.innerHTML = '';
+            
+            Object.keys(appData).forEach(key => {
+                const cat = appData[key];
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <span style="font-size: 24px;">${cat.icon}</span>
+                        <div class="card-title">${cat.title}</div>
+                    </div>
+                    <div class="doc-list">
+                        ${cat.docs.map((d, i) => `
+                            <div class="doc-item">
+                                <div class="doc-info"><div class="doc-name">${d.name}</div></div>
+                                <button onclick="editLink('${key}', ${i})" class="doc-link">${d.link ? 'Open Link' : '+ Add Link'}</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="note-box">
+                        <label>NOTES</label>
+                        <textarea onblur="updateNotes('${key}', this.value)">${cat.notes || ''}</textarea>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            updateStats();
+        }
+
+        function updateNotes(key, val) {
+            appData[key].notes = val;
+            saveToFirebase();
+        }
+
+        function editLink(key, index) {
+            const newLink = prompt("Paste the URL for this document:", appData[key].docs[index].link);
+            if (newLink !== null) {
+                if (newLink === "") {
+                    appData[key].docs[index].link = "";
+                } else {
+                    appData[key].docs[index].link = newLink;
+                    window.open(newLink, '_blank');
+                }
+                saveToFirebase();
+            }
+        }
+
+        function saveToFirebase() {
+            document.getElementById('sync-status').style.opacity = 1;
+            db.collection('hrHub').doc('sharedData').set({
+                json: JSON.stringify(appData),
+                lastUpdated: new Date()
+            }).then(() => {
+                setTimeout(() => document.getElementById('sync-status').style.opacity = 0, 1000);
+            });
+        }
+
+        function updateStats() {
+            let total = 0, linked = 0, notes = 0;
+            Object.values(appData).forEach(c => {
+                total += c.docs.length;
+                linked += c.docs.filter(d => d.link).length;
+                if(c.notes) notes++;
+            });
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-linked').textContent = linked;
+            document.getElementById('stat-notes').textContent = notes;
+        }
+
+        function searchDocs(query) {
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                const text = card.innerText.toLowerCase();
+                card.style.display = text.includes(query.toLowerCase()) ? 'block' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>
