@@ -343,21 +343,14 @@
     .action-toast.success { background: #166534; }
     .action-toast.error { background: #991b1b; }
     .admin-section-title { font-size: 13px; font-weight: 700; color: #1e293b; margin: 16px 0 8px; padding-bottom: 6px; border-bottom: 2px solid #f1f5f9; }
-
     .share-btn { background: #e0e7ff; color: #4338ca; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; margin-left: 4px; transition: all 0.2s; }
     .share-btn:hover { background: #4338ca; color: white; }
     .share-btn.email { background: #dbeafe; color: #1e40af; }
     .share-btn.email:hover { background: #1e40af; color: white; }
-    .share-btn.sms { background: #dcfce7; color: #166534; }
-    .share-btn.sms:hover { background: #166534; color: white; }
-    .share-btn.all { background: #fef3c7; color: #92400e; }
-    .share-btn.all:hover { background: #92400e; color: white; }
-    .email-preview { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; font-size: 13px; line-height: 1.6; color: #1e293b; white-space: pre-wrap; font-family: 'Inter', sans-serif; }
     .email-field { margin-bottom: 10px; }
     .email-field label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; display: block; margin-bottom: 4px; }
     .email-field input, .email-field textarea { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; background: white; color: #1e293b; }
     .email-field textarea { min-height: 200px; resize: vertical; }
-    .sms-preview { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px; font-size: 13px; line-height: 1.6; color: #166534; white-space: pre-wrap; font-family: 'Inter', sans-serif; }
     .tab-nav { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; }
     .tab-btn { padding: 8px 16px; border: none; background: transparent; border-radius: 8px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s; }
     .tab-btn:hover { background: #f1f5f9; color: #1e293b; }
@@ -476,7 +469,9 @@
       <button class="auth-btn" id="pending-check-btn" onclick="checkApprovalStatus()" style="margin-bottom:10px;">&#128260; Check Again</button>
       <button onclick="doAuthSignOut()" style="width:100%;padding:12px;background:#f1f5f9;color:#475569;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">&#8617; Sign Out</button>
     </div>
+  </div>
 
+  <!-- MAIN APP -->
   <!-- BLOCKED OVERLAY -->
   <div class="blocked-overlay" id="blocked-overlay">
     <div class="auth-card">
@@ -495,7 +490,6 @@
       <button onclick="doAuthSignOut()" style="width:100%;padding:12px;background:#f1f5f9;color:#475569;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">&#8617; Sign Out</button>
     </div>
   </div>
-
   <!-- MAIN APP -->
   <div class="dashboard" id="main-app" style="display:none;">
     <div class="header" id="app-header">
@@ -709,7 +703,7 @@
     const db = firebase.firestore();
     const auth = firebase.auth();
 
-    // Firestore offline persistence is enabled by default in Firebase v10+
+    // Firestore offline persistence enabled by default in v10+
 
     // ==================== COMPANY CONFIG ====================
     const COMPANIES = {
@@ -777,7 +771,6 @@
       if (auth.currentUser) {
         handleAuthState(auth.currentUser);
       }
-      // Process any URL action parameters
       handleUrlParams();
     }
 
@@ -788,22 +781,16 @@
       toggleAuthMode('signin');
     }
 
-    // ==================== URL PARAM HANDLER (Email Approval Links) ====================
     function handleUrlParams() {
       const params = new URLSearchParams(window.location.search);
       const action = params.get('action');
       const uid = params.get('uid');
       const companyKey = params.get('company');
-
       if (action && uid && companyKey && ['approve','reject','block','unblock'].includes(action)) {
-        // Auto-select company if on company select screen
-        if (document.getElementById('company-select-overlay').style.display !== 'none') {
-          if (COMPANIES[companyKey]) {
-            selectCompany(companyKey);
-          }
+        if (document.getElementById('company-select-overlay').style.display !== 'none' && COMPANIES[companyKey]) {
+          selectCompany(companyKey);
         }
         pendingAction = { action: action, uid: uid, companyKey: companyKey };
-        // Clean URL so refresh doesn't re-trigger
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
@@ -889,7 +876,6 @@
       auth.createUserWithEmailAndPassword(email, password)
         .then(cred => {
           currentUser = cred.user;
-          // Save user profile with name
           return db.collection(currentCompany.usersCollection).doc(cred.user.uid).set({
             email: email,
             name: name,
@@ -918,9 +904,7 @@
     auth.onAuthStateChanged(async (user) => {
       if (!user) {
         document.getElementById('auth-overlay').classList.remove('active');
-        if (currentCompany) {
-          document.getElementById('auth-overlay').classList.add('active');
-        }
+        if (currentCompany) { document.getElementById('auth-overlay').classList.add('active'); }
         document.getElementById('pending-overlay').classList.remove('active');
         document.getElementById('blocked-overlay').classList.remove('active');
         document.getElementById('main-app').style.display = 'none';
@@ -954,7 +938,6 @@
       const userData = userDoc.data();
       await userRef.update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() });
 
-      // Check blocked/rejected first
       if (userData.status === 'blocked' || userData.status === 'rejected') {
         showBlockedScreen(user.email, userData.status, userData.blockReason || '');
         return;
@@ -966,7 +949,6 @@
         showUserMenu(userData.name || user.email);
         initApp();
         setupAdminListener();
-        // Process any pending email action (approve/reject from link)
         setTimeout(() => processPendingAction(), 500);
       } else if (userData.status === 'approved') {
         isAdmin = false;
@@ -1018,25 +1000,14 @@
       }
       const targetRef = db.collection(currentCompany.usersCollection).doc(pendingAction.uid);
       const targetDoc = await targetRef.get();
-      if (!targetDoc.exists) {
-        showToast('User not found.', 'error');
-        pendingAction = null;
-        return;
-      }
+      if (!targetDoc.exists) { showToast('User not found.', 'error'); pendingAction = null; return; }
       const action = pendingAction.action;
       const targetData = targetDoc.data();
       let newStatus = action === 'unblock' ? 'approved' : action;
-      await targetRef.update({
-        status: newStatus,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedBy: currentUser.uid
-      });
-      showToast(`User "${targetData.name || targetData.email}" has been ${newStatus}.`, 'success');
+      await targetRef.update({ status: newStatus, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: currentUser.uid });
+      showToast('User "' + (targetData.name || targetData.email) + '" has been ' + newStatus + '.', 'success');
       pendingAction = null;
-      // Refresh admin panel if open
-      if (document.getElementById('admin-modal').classList.contains('active')) {
-        openAdminPanel();
-      }
+      if (document.getElementById('admin-modal').classList.contains('active')) openAdminPanel();
     }
 
     function getApprovalLink(userId, action) {
@@ -1596,19 +1567,18 @@
       openModal('admin-modal');
       db.collection(currentCompany.usersCollection).orderBy('createdAt', 'desc').get().then(snapshot => {
         if (snapshot.empty) { container.innerHTML = '<div class="no-data">No users found</div>'; return; }
-
         let pendingHtml = '<div class="admin-section-title">&#9203; Pending Approval</div>';
         let activeHtml = '<div class="admin-section-title">&#9989; Approved Users</div>';
         let blockedHtml = '<div class="admin-section-title">&#128683; Blocked / Rejected</div>';
         let hasPending = false, hasActive = false, hasBlocked = false;
-
         snapshot.forEach(doc => {
           const d = doc.data();
           const status = d.status || 'unknown';
           let dateStr = 'Unknown';
           if (d.createdAt && d.createdAt.toDate) dateStr = d.createdAt.toDate().toLocaleString();
-
           const statusClass = 'status-' + status;
+          const safeName = (d.name || d.email || 'Unknown').replace(/'/g, "\'");
+          const safeEmail = (d.email || '').replace(/'/g, "\'");
           const rowHtml = `
             <div class="pending-device-row">
               <div class="pending-device-info">
@@ -1621,182 +1591,30 @@
                   <button class="doc-link" style="background:#fee2e2;color:#991b1b;" onclick="approveUser('${doc.id}', 'rejected')">Reject</button>
                 ` : ''}
                 ${status === 'approved' ? `
-                  <button class="doc-link empty" onclick="approveUser('${doc.id}', 'pending')">Reset to Pending</button>
+                  <button class="doc-link empty" onclick="approveUser('${doc.id}', 'pending')">Reset</button>
                   <button class="doc-link" style="background:#fee2e2;color:#991b1b;" onclick="approveUser('${doc.id}', 'blocked')">Block</button>
                 ` : ''}
                 ${(status === 'blocked' || status === 'rejected') ? `
-                  <button class="doc-link has-link" onclick="approveUser('${doc.id}', 'approved')">Unblock / Approve</button>
-                  <button class="doc-link empty" onclick="approveUser('${doc.id}', 'pending')">Reset to Pending</button>
+                  <button class="doc-link has-link" onclick="approveUser('${doc.id}', 'approved')">Unblock</button>
+                  <button class="doc-link empty" onclick="approveUser('${doc.id}', 'pending')">Reset</button>
                 ` : ''}
                 ${status !== 'admin' ? `
-                  <button class="share-btn email" onclick="openShareModal('${doc.id}', '${escapeHtml(d.name || 'User')}', '${escapeHtml(d.email || '')}')" title="Generate email/SMS">&#128239; Share</button>
-                  <button class="copy-link-btn" onclick="copyApprovalLink('${doc.id}')" title="Copy approval link">&#128279; Link</button>
+                  <button class="share-btn email" onclick="openShareModal('${doc.id}', '${safeName}', '${safeEmail}')">&#128239; Share</button>
+                  <button class="copy-link-btn" onclick="copyApprovalLink('${doc.id}')">&#128279; Link</button>
                 ` : ''}
               </div>
             </div>
           `;
-
           if (status === 'pending') { pendingHtml += rowHtml; hasPending = true; }
           else if (status === 'approved') { activeHtml += rowHtml; hasActive = true; }
           else { blockedHtml += rowHtml; hasBlocked = true; }
         });
-
         let finalHtml = '';
         finalHtml += hasPending ? pendingHtml : '<div class="admin-section-title">&#9203; Pending Approval</div><div class="no-data">No pending users</div>';
         finalHtml += hasActive ? activeHtml : '<div class="admin-section-title">&#9989; Approved Users</div><div class="no-data">No approved users</div>';
         finalHtml += hasBlocked ? blockedHtml : '<div class="admin-section-title">&#128683; Blocked / Rejected</div><div class="no-data">No blocked users</div>';
         container.innerHTML = finalHtml;
       }).catch(err => { console.error(err); container.innerHTML = '<div class="no-data">Error loading users</div>'; });
-    }
-
-    function copyApprovalLink(userId) {
-      const approveUrl = getApprovalLink(userId, 'approve');
-      const rejectUrl = getApprovalLink(userId, 'reject');
-      const text = `APPROVE: ${approveUrl}
-REJECT: ${rejectUrl}`;
-      navigator.clipboard.writeText(text).then(() => {
-        showToast('Approval links copied to clipboard!', 'success');
-      }).catch(() => {
-        showToast('Failed to copy. Check console for links.', 'error');
-        console.log('Approve link:', approveUrl);
-        console.log('Reject link:', rejectUrl);
-      });
-    }
-
-    // ==================== SHARE MODAL (Email / SMS / All) ====================
-    let currentShareUser = { id: '', name: '', email: '' };
-
-    function switchShareTab(tab) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      document.getElementById('tab-' + tab).classList.add('active');
-      document.getElementById('content-' + tab).classList.add('active');
-    }
-
-    async function openShareModal(userId, userName, userEmail) {
-      currentShareUser = { id: userId, name: userName, email: userEmail };
-      const approveUrl = getApprovalLink(userId, 'approve');
-      const rejectUrl = getApprovalLink(userId, 'reject');
-      const blockUrl = getApprovalLink(userId, 'block');
-      const companyName = currentCompany.name;
-      const fullCompany = currentCompany.fullName;
-      const dateStr = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
-
-      // Email content
-      document.getElementById('share-to').value = '';
-      document.getElementById('share-subject').value = `[${companyName}] New User Approval Request — ${userName}`;
-      document.getElementById('share-body').value = `Hi Admin,
-
-A new user has signed up and is requesting access to the HR Document Hub.
-
-━━━━━━━━━━━━━━━━━━━━━
-USER DETAILS
-━━━━━━━━━━━━━━━━━━━━━
-Name:     ${userName}
-Email:    ${userEmail}
-Company:  ${fullCompany}
-Date:     ${dateStr}
-
-━━━━━━━━━━━━━━━━━━━━━
-QUICK ACTIONS (Click to auto-approve)
-━━━━━━━━━━━━━━━━━━━━━
-
-&#9989; APPROVE USER:
-${approveUrl}
-
-&#10060; REJECT USER:
-${rejectUrl}
-
-&#128683; BLOCK USER:
-${blockUrl}
-
-━━━━━━━━━━━━━━━━━━━━━
-
-Please click one of the links above to take action. You will need to sign in as an admin if you haven't already.
-
-If the links don't work, copy and paste them into your browser.
-
-—
-HR Document Hub
-${companyName}
-`;
-
-      // SMS / Messenger content (shorter)
-      document.getElementById('share-sms').value = `Hi! New user signup sa ${companyName} HR Hub:
-
-Name: ${userName}
-Email: ${userEmail}
-
-&#9989; Approve: ${approveUrl}
-
-&#10060; Reject: ${rejectUrl}
-
-Click lang ang link, auto-approve na after login. Thanks!`;
-
-      // All-in-one content
-      document.getElementById('share-all').value = `═══════════════════════════════════════
-${companyName} — USER APPROVAL REQUEST
-═══════════════════════════════════════
-
-User:     ${userName}
-Email:    ${userEmail}
-Company:  ${fullCompany}
-Date:     ${dateStr}
-
-────────── EMAIL TEMPLATE ──────────
-
-To:       [Admin Email]
-Subject:  [${companyName}] New User Approval Request — ${userName}
-
-Body:
-Hi Admin,
-
-A new user has signed up for the HR Document Hub.
-
-Name:  ${userName}
-Email: ${userEmail}
-
-Please review and approve:
-&#9989; APPROVE: ${approveUrl}
-&#10060; REJECT:  ${rejectUrl}
-&#128683; BLOCK:   ${blockUrl}
-
-────────── SMS / MESSENGER ──────────
-
-${companyName} HR Hub — New signup:
-${userName} (${userEmail})
-
-Approve: ${approveUrl}
-Reject:  ${rejectUrl}
-
-────────── RAW LINKS ──────────
-
-APPROVE: ${approveUrl}
-REJECT:  ${rejectUrl}
-BLOCK:   ${blockUrl}
-
-═══════════════════════════════════════`;
-
-      openModal('share-modal');
-    }
-
-    function copyShareField(fieldId) {
-      const el = document.getElementById(fieldId);
-      el.select();
-      el.setSelectionRange(0, 99999);
-      navigator.clipboard.writeText(el.value).then(() => {
-        showToast('Copied to clipboard!', 'success');
-      }).catch(() => {
-        showToast('Copied (fallback)', 'success');
-      });
-    }
-
-    function openGmailCompose() {
-      const to = document.getElementById('share-to').value;
-      const subject = encodeURIComponent(document.getElementById('share-subject').value);
-      const body = encodeURIComponent(document.getElementById('share-body').value);
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${subject}&body=${body}`;
-      window.open(gmailUrl, '_blank');
     }
 
     function approveUser(userId, status) {
@@ -1821,7 +1639,6 @@ BLOCK:   ${blockUrl}
       }
     });
   </script>
-
   <!-- Share Modal (Email / SMS / All) -->
   <div class="modal-overlay" id="share-modal">
     <div class="modal" style="max-width:560px;">
