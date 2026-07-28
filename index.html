@@ -327,7 +327,45 @@
     .user-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; }
     .user-avatar.iencc { background: linear-gradient(135deg, #2563eb, #1e40af); }
     .user-avatar.seb { background: linear-gradient(135deg, #0d9488, #0f766e); }
+
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-approved { background: #dcfce7; color: #166534; }
+    .status-admin { background: #dbeafe; color: #1e40af; }
+    .status-blocked { background: #fee2e2; color: #991b1b; }
+    .status-rejected { background: #f1f5f9; color: #64748b; }
+    .blocked-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9996; align-items: center; justify-content: center; padding: 20px; }
+    .blocked-overlay.active { display: flex; }
+    .copy-link-btn { background: #e0e7ff; color: #4338ca; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; margin-left: 6px; }
+    .copy-link-btn:hover { background: #4338ca; color: white; }
+    .action-toast { position: fixed; top: 20px; right: 20px; background: #1e293b; color: white; padding: 14px 20px; border-radius: 12px; font-size: 13px; font-weight: 500; z-index: 10000; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transform: translateX(150%); transition: transform 0.4s ease; max-width: 360px; }
+    .action-toast.show { transform: translateX(0); }
+    .action-toast.success { background: #166534; }
+    .action-toast.error { background: #991b1b; }
+    .admin-section-title { font-size: 13px; font-weight: 700; color: #1e293b; margin: 16px 0 8px; padding-bottom: 6px; border-bottom: 2px solid #f1f5f9; }
+
+    .share-btn { background: #e0e7ff; color: #4338ca; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; margin-left: 4px; transition: all 0.2s; }
+    .share-btn:hover { background: #4338ca; color: white; }
+    .share-btn.email { background: #dbeafe; color: #1e40af; }
+    .share-btn.email:hover { background: #1e40af; color: white; }
+    .share-btn.sms { background: #dcfce7; color: #166534; }
+    .share-btn.sms:hover { background: #166534; color: white; }
+    .share-btn.all { background: #fef3c7; color: #92400e; }
+    .share-btn.all:hover { background: #92400e; color: white; }
+    .email-preview { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; font-size: 13px; line-height: 1.6; color: #1e293b; white-space: pre-wrap; font-family: 'Inter', sans-serif; }
+    .email-field { margin-bottom: 10px; }
+    .email-field label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; display: block; margin-bottom: 4px; }
+    .email-field input, .email-field textarea { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; background: white; color: #1e293b; }
+    .email-field textarea { min-height: 200px; resize: vertical; }
+    .sms-preview { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px; font-size: 13px; line-height: 1.6; color: #166534; white-space: pre-wrap; font-family: 'Inter', sans-serif; }
+    .tab-nav { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; }
+    .tab-btn { padding: 8px 16px; border: none; background: transparent; border-radius: 8px; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s; }
+    .tab-btn:hover { background: #f1f5f9; color: #1e293b; }
+    .tab-btn.active { background: #e0e7ff; color: #4338ca; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
   </style>
+<base target="_blank">
 <base target="_blank">
 </head>
 <body>
@@ -436,6 +474,24 @@
         <div style="font-size:12px;color:#64748b;margin-top:4px;">Company: <strong id="pending-company">-</strong></div>
       </div>
       <button class="auth-btn" id="pending-check-btn" onclick="checkApprovalStatus()" style="margin-bottom:10px;">&#128260; Check Again</button>
+      <button onclick="doAuthSignOut()" style="width:100%;padding:12px;background:#f1f5f9;color:#475569;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">&#8617; Sign Out</button>
+    </div>
+
+  <!-- BLOCKED OVERLAY -->
+  <div class="blocked-overlay" id="blocked-overlay">
+    <div class="auth-card">
+      <div style="width:56px;height:56px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;">&#128683;</div>
+      <h2 style="font-size:22px;font-weight:700;color:#1e293b;margin-bottom:8px;">Access Blocked</h2>
+      <p style="font-size:14px;color:#64748b;margin-bottom:24px;line-height:1.5;">
+        Your account has been blocked by the administrator.<br>
+        Please contact the HR admin for assistance.
+      </p>
+      <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:24px;text-align:left;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Signed in as</div>
+        <div style="font-size:13px;color:#1e293b;font-weight:500;" id="blocked-email"></div>
+        <div style="font-size:12px;color:#64748b;margin-top:4px;">Company: <strong id="blocked-company">-</strong></div>
+        <div style="font-size:12px;color:#991b1b;margin-top:8px;font-weight:600;" id="blocked-reason"></div>
+      </div>
       <button onclick="doAuthSignOut()" style="width:100%;padding:12px;background:#f1f5f9;color:#475569;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">&#8617; Sign Out</button>
     </div>
   </div>
@@ -688,6 +744,7 @@
     let unsubscribeAdmin = null;
     let isAdmin = false;
     let currentUser = null;
+    let pendingAction = null;
 
     // ==================== COMPANY SELECTION ====================
     function selectCompany(companyKey) {
@@ -723,6 +780,8 @@
       if (auth.currentUser) {
         handleAuthState(auth.currentUser);
       }
+      // Process any URL action parameters
+      handleUrlParams();
     }
 
     function backToCompanySelect() {
@@ -730,6 +789,26 @@
       document.getElementById('company-select-overlay').style.display = 'flex';
       currentCompany = null;
       toggleAuthMode('signin');
+    }
+
+    // ==================== URL PARAM HANDLER (Email Approval Links) ====================
+    function handleUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      const action = params.get('action');
+      const uid = params.get('uid');
+      const companyKey = params.get('company');
+
+      if (action && uid && companyKey && ['approve','reject','block','unblock'].includes(action)) {
+        // Auto-select company if on company select screen
+        if (document.getElementById('company-select-overlay').style.display !== 'none') {
+          if (COMPANIES[companyKey]) {
+            selectCompany(companyKey);
+          }
+        }
+        pendingAction = { action: action, uid: uid, companyKey: companyKey };
+        // Clean URL so refresh doesn't re-trigger
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
 
     // ==================== AUTH FUNCTIONS ====================
@@ -812,6 +891,7 @@
 
       auth.createUserWithEmailAndPassword(email, password)
         .then(cred => {
+          currentUser = cred.user;
           // Save user profile with name
           return db.collection(currentCompany.usersCollection).doc(cred.user.uid).set({
             email: email,
@@ -845,6 +925,7 @@
           document.getElementById('auth-overlay').classList.add('active');
         }
         document.getElementById('pending-overlay').classList.remove('active');
+        document.getElementById('blocked-overlay').classList.remove('active');
         document.getElementById('main-app').style.display = 'none';
         document.getElementById('user-menu').style.display = 'none';
         document.getElementById('admin-btn').style.display = 'none';
@@ -852,7 +933,7 @@
         if (unsubscribeAdmin) { unsubscribeAdmin(); unsubscribeAdmin = null; }
         return;
       }
-      handleAuthState(user);
+      await handleAuthState(user);
     });
 
     async function handleAuthState(user) {
@@ -876,12 +957,20 @@
       const userData = userDoc.data();
       await userRef.update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() });
 
+      // Check blocked/rejected first
+      if (userData.status === 'blocked' || userData.status === 'rejected') {
+        showBlockedScreen(user.email, userData.status, userData.blockReason || '');
+        return;
+      }
+
       if (userData.status === 'admin') {
         isAdmin = true;
         hideAuthOverlay();
         showUserMenu(userData.name || user.email);
         initApp();
         setupAdminListener();
+        // Process any pending email action (approve/reject from link)
+        setTimeout(() => processPendingAction(), 500);
       } else if (userData.status === 'approved') {
         isAdmin = false;
         hideAuthOverlay();
@@ -903,6 +992,59 @@
       document.getElementById('pending-overlay').classList.add('active');
       document.getElementById('pending-email').textContent = email;
       document.getElementById('pending-company').textContent = currentCompany.fullName;
+    }
+
+    function showBlockedScreen(email, status, reason) {
+      document.getElementById('auth-overlay').classList.remove('active');
+      document.getElementById('pending-overlay').classList.remove('active');
+      document.getElementById('blocked-overlay').classList.add('active');
+      document.getElementById('blocked-email').textContent = email;
+      document.getElementById('blocked-company').textContent = currentCompany.fullName;
+      const reasonEl = document.getElementById('blocked-reason');
+      if (reason) { reasonEl.textContent = 'Reason: ' + reason; reasonEl.style.display = 'block'; }
+      else { reasonEl.style.display = 'none'; }
+    }
+
+    function showToast(message, type) {
+      const toast = document.getElementById('action-toast');
+      toast.textContent = message;
+      toast.className = 'action-toast show ' + (type || '');
+      setTimeout(() => { toast.classList.remove('show'); }, 4000);
+    }
+
+    async function processPendingAction() {
+      if (!pendingAction || !currentUser || !isAdmin) return;
+      if (pendingAction.companyKey !== currentCompany.bgClass) {
+        showToast('This action is for a different company.', 'error');
+        pendingAction = null;
+        return;
+      }
+      const targetRef = db.collection(currentCompany.usersCollection).doc(pendingAction.uid);
+      const targetDoc = await targetRef.get();
+      if (!targetDoc.exists) {
+        showToast('User not found.', 'error');
+        pendingAction = null;
+        return;
+      }
+      const action = pendingAction.action;
+      const targetData = targetDoc.data();
+      let newStatus = action === 'unblock' ? 'approved' : action;
+      await targetRef.update({
+        status: newStatus,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: currentUser.uid
+      });
+      showToast(`User "${targetData.name || targetData.email}" has been ${newStatus}.`, 'success');
+      pendingAction = null;
+      // Refresh admin panel if open
+      if (document.getElementById('admin-modal').classList.contains('active')) {
+        openAdminPanel();
+      }
+    }
+
+    function getApprovalLink(userId, action) {
+      const baseUrl = window.location.origin + window.location.pathname;
+      return baseUrl + '?company=' + currentCompany.bgClass + '&action=' + action + '&uid=' + userId;
     }
 
     function showUserMenu(name) {
@@ -1457,39 +1599,220 @@
       openModal('admin-modal');
       db.collection(currentCompany.usersCollection).orderBy('createdAt', 'desc').get().then(snapshot => {
         if (snapshot.empty) { container.innerHTML = '<div class="no-data">No users found</div>'; return; }
-        let html = '';
+
+        let pendingHtml = '<div class="admin-section-title">&#9203; Pending Approval</div>';
+        let activeHtml = '<div class="admin-section-title">&#9989; Approved Users</div>';
+        let blockedHtml = '<div class="admin-section-title">&#128683; Blocked / Rejected</div>';
+        let hasPending = false, hasActive = false, hasBlocked = false;
+
         snapshot.forEach(doc => {
           const d = doc.data();
           const status = d.status || 'unknown';
           let dateStr = 'Unknown';
           if (d.createdAt && d.createdAt.toDate) dateStr = d.createdAt.toDate().toLocaleString();
-          const isPending = status === 'pending';
-          html += `
+
+          const statusClass = 'status-' + status;
+          const rowHtml = `
             <div class="pending-device-row">
               <div class="pending-device-info">
-                <div class="pending-device-name">${escapeHtml(d.name || d.email || 'Unknown')}</div>
-                <div class="pending-device-meta">${escapeHtml(d.email || '')} &bull; Status: <strong>${status.toUpperCase()}</strong> &bull; Joined: ${dateStr}</div>
+                <div class="pending-device-name">${escapeHtml(d.name || d.email || 'Unknown')} <span class="status-badge ${statusClass}">${status}</span></div>
+                <div class="pending-device-meta">${escapeHtml(d.email || '')} &bull; Joined: ${dateStr}</div>
               </div>
               <div class="pending-actions">
-                ${isPending ? `
+                ${status === 'pending' ? `
                   <button class="doc-link has-link" onclick="approveUser('${doc.id}', 'approved')">Approve</button>
                   <button class="doc-link" style="background:#fee2e2;color:#991b1b;" onclick="approveUser('${doc.id}', 'rejected')">Reject</button>
-                ` : `
-                  <button class="doc-link empty" onclick="approveUser('${doc.id}', 'pending')">Reset</button>
-                `}
+                ` : ''}
+                ${status === 'approved' ? `
+                  <button class="doc-link empty" onclick="approveUser('${doc.id}', 'pending')">Reset to Pending</button>
+                  <button class="doc-link" style="background:#fee2e2;color:#991b1b;" onclick="approveUser('${doc.id}', 'blocked')">Block</button>
+                ` : ''}
+                ${(status === 'blocked' || status === 'rejected') ? `
+                  <button class="doc-link has-link" onclick="approveUser('${doc.id}', 'approved')">Unblock / Approve</button>
+                  <button class="doc-link empty" onclick="approveUser('${doc.id}', 'pending')">Reset to Pending</button>
+                ` : ''}
+                ${status !== 'admin' ? `
+                  <button class="share-btn email" onclick="openShareModal('${doc.id}', '${escapeHtml(d.name || 'User')}', '${escapeHtml(d.email || '')}')" title="Generate email/SMS">&#128239; Share</button>
+                  <button class="copy-link-btn" onclick="copyApprovalLink('${doc.id}')" title="Copy approval link">&#128279; Link</button>
+                ` : ''}
               </div>
             </div>
           `;
+
+          if (status === 'pending') { pendingHtml += rowHtml; hasPending = true; }
+          else if (status === 'approved') { activeHtml += rowHtml; hasActive = true; }
+          else { blockedHtml += rowHtml; hasBlocked = true; }
         });
-        container.innerHTML = html;
+
+        let finalHtml = '';
+        finalHtml += hasPending ? pendingHtml : '<div class="admin-section-title">&#9203; Pending Approval</div><div class="no-data">No pending users</div>';
+        finalHtml += hasActive ? activeHtml : '<div class="admin-section-title">&#9989; Approved Users</div><div class="no-data">No approved users</div>';
+        finalHtml += hasBlocked ? blockedHtml : '<div class="admin-section-title">&#128683; Blocked / Rejected</div><div class="no-data">No blocked users</div>';
+        container.innerHTML = finalHtml;
       }).catch(err => { console.error(err); container.innerHTML = '<div class="no-data">Error loading users</div>'; });
     }
 
+    function copyApprovalLink(userId) {
+      const approveUrl = getApprovalLink(userId, 'approve');
+      const rejectUrl = getApprovalLink(userId, 'reject');
+      const text = `APPROVE: ${approveUrl}
+REJECT: ${rejectUrl}`;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Approval links copied to clipboard!', 'success');
+      }).catch(() => {
+        showToast('Failed to copy. Check console for links.', 'error');
+        console.log('Approve link:', approveUrl);
+        console.log('Reject link:', rejectUrl);
+      });
+    }
+
+    // ==================== SHARE MODAL (Email / SMS / All) ====================
+    let currentShareUser = { id: '', name: '', email: '' };
+
+    function switchShareTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      document.getElementById('content-' + tab).classList.add('active');
+    }
+
+    async function openShareModal(userId, userName, userEmail) {
+      currentShareUser = { id: userId, name: userName, email: userEmail };
+      const approveUrl = getApprovalLink(userId, 'approve');
+      const rejectUrl = getApprovalLink(userId, 'reject');
+      const blockUrl = getApprovalLink(userId, 'block');
+      const companyName = currentCompany.name;
+      const fullCompany = currentCompany.fullName;
+      const dateStr = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      // Email content
+      document.getElementById('share-to').value = '';
+      document.getElementById('share-subject').value = `[${companyName}] New User Approval Request — ${userName}`;
+      document.getElementById('share-body').value = `Hi Admin,
+
+A new user has signed up and is requesting access to the HR Document Hub.
+
+━━━━━━━━━━━━━━━━━━━━━
+USER DETAILS
+━━━━━━━━━━━━━━━━━━━━━
+Name:     ${userName}
+Email:    ${userEmail}
+Company:  ${fullCompany}
+Date:     ${dateStr}
+
+━━━━━━━━━━━━━━━━━━━━━
+QUICK ACTIONS (Click to auto-approve)
+━━━━━━━━━━━━━━━━━━━━━
+
+&#9989; APPROVE USER:
+${approveUrl}
+
+&#10060; REJECT USER:
+${rejectUrl}
+
+&#128683; BLOCK USER:
+${blockUrl}
+
+━━━━━━━━━━━━━━━━━━━━━
+
+Please click one of the links above to take action. You will need to sign in as an admin if you haven't already.
+
+If the links don't work, copy and paste them into your browser.
+
+—
+HR Document Hub
+${companyName}
+`;
+
+      // SMS / Messenger content (shorter)
+      document.getElementById('share-sms').value = `Hi! New user signup sa ${companyName} HR Hub:
+
+Name: ${userName}
+Email: ${userEmail}
+
+&#9989; Approve: ${approveUrl}
+
+&#10060; Reject: ${rejectUrl}
+
+Click lang ang link, auto-approve na after login. Thanks!`;
+
+      // All-in-one content
+      document.getElementById('share-all').value = `═══════════════════════════════════════
+${companyName} — USER APPROVAL REQUEST
+═══════════════════════════════════════
+
+User:     ${userName}
+Email:    ${userEmail}
+Company:  ${fullCompany}
+Date:     ${dateStr}
+
+────────── EMAIL TEMPLATE ──────────
+
+To:       [Admin Email]
+Subject:  [${companyName}] New User Approval Request — ${userName}
+
+Body:
+Hi Admin,
+
+A new user has signed up for the HR Document Hub.
+
+Name:  ${userName}
+Email: ${userEmail}
+
+Please review and approve:
+&#9989; APPROVE: ${approveUrl}
+&#10060; REJECT:  ${rejectUrl}
+&#128683; BLOCK:   ${blockUrl}
+
+────────── SMS / MESSENGER ──────────
+
+${companyName} HR Hub — New signup:
+${userName} (${userEmail})
+
+Approve: ${approveUrl}
+Reject:  ${rejectUrl}
+
+────────── RAW LINKS ──────────
+
+APPROVE: ${approveUrl}
+REJECT:  ${rejectUrl}
+BLOCK:   ${blockUrl}
+
+═══════════════════════════════════════`;
+
+      openModal('share-modal');
+    }
+
+    function copyShareField(fieldId) {
+      const el = document.getElementById(fieldId);
+      el.select();
+      el.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(el.value).then(() => {
+        showToast('Copied to clipboard!', 'success');
+      }).catch(() => {
+        showToast('Copied (fallback)', 'success');
+      });
+    }
+
+    function openGmailCompose() {
+      const to = document.getElementById('share-to').value;
+      const subject = encodeURIComponent(document.getElementById('share-subject').value);
+      const body = encodeURIComponent(document.getElementById('share-body').value);
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${subject}&body=${body}`;
+      window.open(gmailUrl, '_blank');
+    }
+
     function approveUser(userId, status) {
+      const actionText = status === 'blocked' ? 'block' : status;
+      if (!confirm('Are you sure you want to ' + actionText + ' this user?')) return;
       db.collection(currentCompany.usersCollection).doc(userId).update({
         status: status,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }).then(() => { openAdminPanel(); }).catch(err => { console.error(err); alert('Error updating user status'); });
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: currentUser ? currentUser.uid : null
+      }).then(() => {
+        showToast('User status updated to: ' + status, 'success');
+        openAdminPanel();
+      }).catch(err => { console.error(err); showToast('Error updating user status', 'error'); });
     }
 
     // ==================== INIT ====================
@@ -1501,5 +1824,61 @@
       }
     });
   </script>
+
+  <!-- Share Modal (Email / SMS / All) -->
+  <div class="modal-overlay" id="share-modal">
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header">
+        <div class="modal-title">&#128239; Share Approval Links</div>
+        <button class="modal-close" onclick="closeModal('share-modal')">&#215;</button>
+      </div>
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchShareTab('email')" id="tab-email">&#128231; Email</button>
+        <button class="tab-btn" onclick="switchShareTab('sms')" id="tab-sms">&#128241; SMS / Messenger</button>
+        <button class="tab-btn" onclick="switchShareTab('all')" id="tab-all">&#128203; Copy All</button>
+      </div>
+      <div class="tab-content active" id="content-email">
+        <div class="email-field">
+          <label>To</label>
+          <input type="text" id="share-to" readonly>
+        </div>
+        <div class="email-field">
+          <label>Subject</label>
+          <input type="text" id="share-subject" readonly>
+        </div>
+        <div class="email-field">
+          <label>Body</label>
+          <textarea id="share-body" readonly></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeModal('share-modal')">Close</button>
+          <button class="btn-save" onclick="copyShareField('share-body')">&#128203; Copy Body</button>
+          <button class="btn-primary" onclick="openGmailCompose()">&#128231; Open Gmail</button>
+        </div>
+      </div>
+      <div class="tab-content" id="content-sms">
+        <div class="email-field">
+          <label>SMS / Messenger Message</label>
+          <textarea id="share-sms" readonly style="min-height:120px;"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeModal('share-modal')">Close</button>
+          <button class="btn-save" onclick="copyShareField('share-sms')">&#128203; Copy Message</button>
+        </div>
+      </div>
+      <div class="tab-content" id="content-all">
+        <div class="email-field">
+          <label>Complete Share Package (Email + SMS + Links)</label>
+          <textarea id="share-all" readonly style="min-height:260px;"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeModal('share-modal')">Close</button>
+          <button class="btn-save" onclick="copyShareField('share-all')">&#128203; Copy Everything</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="action-toast" id="action-toast"></div>
 </body>
 </html>
