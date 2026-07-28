@@ -328,6 +328,7 @@
     .user-avatar.iencc { background: linear-gradient(135deg, #2563eb, #1e40af); }
     .user-avatar.seb { background: linear-gradient(135deg, #0d9488, #0f766e); }
   </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -371,6 +372,9 @@
         </div>
         <button class="auth-btn" id="auth-btn-signin" onclick="doAuthSignIn()">Sign In</button>
         <div class="auth-toggle">
+          <a id="auth-toggle-forgot" onclick="toggleAuthMode('forgot')">Forgot Password?</a>
+        </div>
+        <div class="auth-toggle">
           No account? <a id="auth-toggle-signup" onclick="toggleAuthMode('signup')">Sign Up</a>
         </div>
       </div>
@@ -396,6 +400,18 @@
         <button class="auth-btn" id="auth-btn-signup" onclick="doAuthSignUp()">Create Account</button>
         <div class="auth-toggle">
           Have an account? <a id="auth-toggle-signin" onclick="toggleAuthMode('signin')">Sign In</a>
+        </div>
+      </div>
+
+      <!-- FORGOT PASSWORD FORM -->
+      <div id="forgot-form" style="display:none;">
+        <div class="auth-input-group">
+          <label>Email Address</label>
+          <input type="email" id="forgot-email" placeholder="you@company.com" onkeypress="if(event.key==='Enter')doAuthForgotPassword()">
+        </div>
+        <button class="auth-btn" id="auth-btn-forgot" onclick="doAuthForgotPassword()">Send Reset Link</button>
+        <div class="auth-toggle">
+          Remember your password? <a id="auth-toggle-signin-from-forgot" onclick="toggleAuthMode('signin')">Sign In</a>
         </div>
       </div>
 
@@ -690,11 +706,14 @@
       document.getElementById('auth-company-name').className = 'auth-company ' + currentCompany.bgClass;
       document.getElementById('auth-btn-signin').className = 'auth-btn ' + currentCompany.bgClass;
       document.getElementById('auth-btn-signup').className = 'auth-btn ' + currentCompany.bgClass;
+      document.getElementById('auth-btn-forgot').className = 'auth-btn ' + currentCompany.bgClass;
       document.getElementById('pending-check-btn').className = 'auth-btn ' + currentCompany.bgClass;
 
       // Update toggle links color
       document.getElementById('auth-toggle-signup').className = currentCompany.bgClass;
       document.getElementById('auth-toggle-signin').className = currentCompany.bgClass;
+      document.getElementById('auth-toggle-forgot').className = currentCompany.bgClass;
+      document.getElementById('auth-toggle-signin-from-forgot').className = currentCompany.bgClass;
 
       // Update pending overlay
       const pendingOverlay = document.getElementById('pending-overlay');
@@ -717,8 +736,22 @@
     function toggleAuthMode(mode) {
       document.getElementById('signin-form').style.display = mode === 'signin' ? 'block' : 'none';
       document.getElementById('signup-form').style.display = mode === 'signup' ? 'block' : 'none';
+      document.getElementById('forgot-form').style.display = mode === 'forgot' ? 'block' : 'none';
       document.getElementById('auth-error').style.display = 'none';
       document.getElementById('auth-success').style.display = 'none';
+      // Update title/subtitle based on mode
+      const titleEl = document.getElementById('auth-title');
+      const subEl = document.getElementById('auth-sub');
+      if (mode === 'signin') {
+        titleEl.textContent = 'Welcome Back';
+        subEl.textContent = 'Sign in to access the employee database';
+      } else if (mode === 'signup') {
+        titleEl.textContent = 'Create Account';
+        subEl.textContent = 'Sign up to get started';
+      } else if (mode === 'forgot') {
+        titleEl.textContent = 'Reset Password';
+        subEl.textContent = 'Enter your email to receive a password reset link';
+      }
     }
 
     function showAuthError(msg) {
@@ -747,6 +780,23 @@
           if (err.code === 'auth/invalid-email') msg = 'Please enter a valid email address.';
           if (err.code === 'auth/invalid-credential') msg = 'Invalid email or password. Please try again or sign up.';
           if (err.code === 'auth/too-many-requests') msg = 'Too many failed attempts. Please try again later.';
+          showAuthError(msg);
+        });
+    }
+
+    function doAuthForgotPassword() {
+      const email = document.getElementById('forgot-email').value.trim();
+      if (!email) { showAuthError('Please enter your email address'); return; }
+      auth.sendPasswordResetEmail(email)
+        .then(() => {
+          showAuthSuccess('Password reset email sent! Check your inbox.');
+          document.getElementById('forgot-email').value = '';
+        })
+        .catch(err => {
+          let msg = err.message;
+          if (err.code === 'auth/user-not-found') msg = 'No account found with this email address.';
+          if (err.code === 'auth/invalid-email') msg = 'Please enter a valid email address.';
+          if (err.code === 'auth/too-many-requests') msg = 'Too many requests. Please try again later.';
           showAuthError(msg);
         });
     }
