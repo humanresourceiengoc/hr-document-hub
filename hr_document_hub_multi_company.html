@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HR Document Template Hub</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <base target="_blank">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f0f2f5; padding: 20px; }
+    .dashboard { max-width: 1200px; margin: 0 auto; }
+
+    /* COMPANY SELECTION */
+    .company-select-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: #1e293b;
+      z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .company-select-card {
+      background: white; border-radius: 24px; padding: 40px;
+      width: 100%; max-width: 520px;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    .company-select-title { font-size: 24px; font-weight: 700; color: #1e293b; margin-bottom: 6px; }
+    .company-select-sub { font-size: 14px; color: #64748b; margin-bottom: 32px; }
+    .company-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    @media (max-width: 480px) { .company-grid { grid-template-columns: 1fr; } }
+    .company-option {
+      border: 2px solid #e2e8f0; border-radius: 16px; padding: 28px 20px;
+      cursor: pointer; transition: all 0.3s; background: #f8fafc;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .company-option:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+    .company-option.iencc:hover { border-color: #2563eb; }
+    .company-option.seb:hover { border-color: #0d9488; }
+    .company-option.iencc.active { border-color: #2563eb; background: #eff6ff; }
+    .company-option.seb.active { border-color: #0d9488; background: #f0fdfa; }
+    .company-logo {
+      width: 56px; height: 56px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; color: white; margin-bottom: 12px;
+    }
+    .company-logo.iencc { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+    .company-logo.seb { background: linear-gradient(135deg, #0d9488, #0f766e); }
+    .company-name { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+    .company-desc { font-size: 12px; color: #64748b; line-height: 1.4; }
+
+    /* AUTH OVERLAY */
+    .auth-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 9998; display: none;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .auth-overlay.iencc { background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%); }
+    .auth-overlay.seb { background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%); }
+    .auth-overlay.active { display: flex; }
+    .auth-card {
+      background: white; border-radius: 20px; padding: 40px;
+      width: 100%; max-width: 420px;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.3); text-align: center;
+    }
+    .auth-logo {
+      width: 56px; height: 56px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 700; color: white;
+      margin: 0 auto 20px;
+    }
+    .auth-logo.iencc { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+    .auth-logo.seb { background: linear-gradient(135deg, #0d9488, #0f766e); }
+    .auth-title { font-size: 24px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+    .auth-sub { font-size: 13px; color: #64748b; margin-bottom: 6px; }
+    .auth-company { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 28px; }
+    .auth-company.iencc { color: #1e40af; }
+    .auth-company.seb { color: #0f766e; }
+    .auth-input-group { margin-bottom: 16px; text-align: left; }
+    .auth-input-group label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: #475569; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .auth-input-group input {
+      width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0;
+      border-radius: 12px; font-size: 14px; font-family: 'Inter', sans-serif;
+      outline: none; transition: border-color 0.2s; background: #f8fafc;
+    }
+    .auth-input-group input:focus { border-color: #667eea; }
+    .auth-btn {
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 600; color: white; cursor: pointer;
+      transition: all 0.2s; font-family: 'Inter', sans-serif;
+    }
+    .auth-btn.iencc { background: linear-gradient(135deg, #2563eb, #1e40af); }
+    .auth-btn.seb { background: linear-gradient(135deg, #0d9488, #0f766e); }
+    .auth-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
+    .auth-toggle { text-align: center; margin-top: 16px; font-size: 13px; color: #64748b; }
+    .auth-toggle a { font-weight: 600; cursor: pointer; text-decoration: underline; }
+    .auth-toggle a.iencc { color: #2563eb; }
+    .auth-toggle a.seb { color: #0d9488; }
+    .auth-back { text-align: center; margin-top: 10px; font-size: 13px; color: #94a3b8; cursor: pointer; }
+    .auth-back:hover { color: #64748b; }
+    .auth-error { color: #ef4444; font-size: 13px; margin-top: 12px; display: none; font-weight: 500; text-align: center; }
+    .auth-success { color: #22c55e; font-size: 13px; margin-top: 12px; display: none; font-weight: 500; text-align: center; }
+
+    /* PENDING */
+    .pending-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 9997; align-items: center; justify-content: center; padding: 20px;
+    }
+    .pending-overlay.iencc { background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%); }
+    .pending-overlay.seb { background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%); }
+    .pending-overlay.active { display: flex; }
+
+    /* HEADER */
+    .header {
+      padding: 28px; border-radius: 16px; margin-bottom: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+    .header.iencc { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); color: white; }
+    .header.seb { background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color: white; }
+    .header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+    .header p { opacity: 0.9; font-size: 14px; }
+
+    /* MAIN GRID */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: white; border-radius: 14px; padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+    .card-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #f1f5f9;
+    }
+    .card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .icon-recruit { background: #dbeafe; }
+    .icon-onboard { background: #dcfce7; }
+    .icon-offboard { background: #fee2e2; }
+    .icon-file { background: #fef3c7; }
+    .icon-discipline { background: #f3e8ff; }
+    .icon-attendance { background: #ffedd5; }
+    .icon-leave { background: #d1fae5; }
+    .icon-blue { background: #dbeafe; }
+    .icon-green { background: #dcfce7; }
+    .icon-red { background: #fee2e2; }
+    .icon-yellow { background: #fef3c7; }
+    .icon-purple { background: #f3e8ff; }
+    .icon-indigo { background: #e0e7ff; }
+    .icon-teal { background: #ccfbf1; }
+    .icon-orange { background: #ffedd5; }
+    .icon-pink { background: #fce7f3; }
+    .icon-gray { background: #f1f5f9; }
+    .card-title { font-size: 16px; font-weight: 700; color: #1e293b; }
+    .card-subtitle { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .doc-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; border-radius: 10px; margin-bottom: 8px;
+      background: #f8fafc; border: 1px solid #e2e8f0;
+      transition: all 0.2s; position: relative;
+    }
+    .doc-item:hover { background: #f1f5f9; border-color: #cbd5e1; }
+    .doc-num {
+      width: 26px; height: 26px; border-radius: 6px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white; display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 11px; flex-shrink: 0; margin-top: 2px;
+    }
+    .doc-info { flex: 1; min-width: 0; }
+    .doc-name { font-weight: 600; color: #1e293b; font-size: 13px; }
+    .doc-desc { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .doc-actions { display: flex; gap: 6px; align-items: center; }
+    .doc-link {
+      font-size: 11px; color: #667eea; background: #e0e7ff;
+      padding: 3px 10px; border-radius: 6px; cursor: pointer;
+      white-space: nowrap; transition: all 0.2s;
+      text-decoration: none; display: inline-block; border: none;
+    }
+    .doc-link:hover { background: #667eea; color: white; }
+    .doc-link.empty { background: #f1f5f9; color: #94a3b8; }
+    .doc-link.empty:hover { background: #e2e8f0; color: #64748b; }
+    .doc-link.has-link { background: #dcfce7; color: #166534; }
+    .doc-link.has-link:hover { background: #22c55e; color: white; }
+    .doc-delete {
+      opacity: 0.6; transition: all 0.2s; background: #fee2e2; color: #991b1b;
+      border: none; width: 24px; height: 24px; border-radius: 6px;
+      cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+    }
+    .doc-item:hover .doc-delete { opacity: 1; }
+    .doc-delete:hover { background: #ef4444; color: white; }
+    .note-box {
+      margin-top: 10px; padding: 10px; background: #fffbeb;
+      border-radius: 8px; border-left: 3px solid #f59e0b;
+    }
+    .note-box label { font-size: 10px; font-weight: 600; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; }
+    .note-box textarea {
+      width: 100%; border: none; background: transparent; resize: vertical;
+      font-size: 12px; color: #92400e; margin-top: 3px; outline: none;
+      min-height: 32px; font-family: 'Inter', sans-serif;
+    }
+    .add-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 12px; margin-top: 12px;
+      border: 2px dashed #cbd5e1; border-radius: 10px;
+      background: #f8fafc; color: #64748b;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .add-btn:hover { border-color: #667eea; color: #667eea; background: #f0f4ff; }
+    .add-form { display: none; margin-top: 12px; padding: 14px; background: #f0f4ff; border-radius: 10px; border: 1px solid #c7d2fe; }
+    .add-form.active { display: block; }
+    .add-form input {
+      width: 100%; padding: 8px 12px; margin-bottom: 8px;
+      border: 1px solid #c7d2fe; border-radius: 8px;
+      font-size: 13px; font-family: 'Inter', sans-serif; outline: none;
+    }
+    .add-form input:focus { border-color: #667eea; }
+    .add-form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .add-form-actions button { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; font-family: 'Inter', sans-serif; }
+    .btn-save { background: #667eea; color: white; }
+    .btn-save:hover { background: #5a67d8; }
+    .btn-cancel { background: #e2e8f0; color: #475569; }
+    .btn-cancel:hover { background: #cbd5e1; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px;
+      font-size: 12px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(102, 126, 234, 0.35); }
+    .btn-danger { background: #fee2e2; color: #991b1b; }
+    .btn-danger:hover { background: #fecaca; }
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5); z-index: 1000;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: white; border-radius: 16px; padding: 24px;
+      width: 100%; max-width: 500px; max-height: 80vh;
+      overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .modal-title { font-size: 18px; font-weight: 700; color: #1e293b; }
+    .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; }
+    .modal-close:hover { color: #1e293b; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0;
+      border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; outline: none;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #667eea; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .no-data { text-align: center; color: #94a3b8; padding: 20px; font-size: 13px; }
+    .add-category-card { padding: 0 !important; overflow: hidden; border: 2px dashed #cbd5e1; background: #f8fafc; transition: all 0.3s; }
+    .add-category-card:hover { border-color: #667eea; background: #f0f4ff; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.12); }
+    .add-category-btn { width: 100%; height: 100%; min-height: 180px; border: none; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px; }
+    .add-category-icon { width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; }
+    .add-category-text { font-size: 15px; font-weight: 700; color: #475569; }
+    .add-category-sub { font-size: 12px; color: #94a3b8; }
+    .cat-delete-btn {
+      background: #fee2e2; color: #991b1b; border: none;
+      width: 28px; height: 28px; border-radius: 6px;
+      cursor: pointer; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      margin-left: auto; opacity: 0.7; transition: all 0.2s;
+    }
+    .cat-delete-btn:hover { opacity: 1; background: #ef4444; color: white; }
+    .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    @media (max-width: 768px) { .stats-bar { grid-template-columns: repeat(2, 1fr); } }
+    .stat-box { background: white; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; }
+    .stat-num { font-size: 28px; font-weight: 700; color: #667eea; line-height: 1; }
+    .stat-label { font-size: 11px; color: #64748b; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    .search-highlight { background: #fef08a !important; border-color: #facc15 !important; animation: pulse 1s ease; }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+    .hidden-by-search { display: none !important; }
+
+    /* Dark mode */
+    body.dark-mode { background: #0f172a; color: #e2e8f0; }
+    body.dark-mode .card { background: #1e293b; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+    body.dark-mode .card-title { color: #f1f5f9; }
+    body.dark-mode .doc-item { background: #334155; border-color: #475569; }
+    body.dark-mode .doc-name { color: #f1f5f9; }
+    body.dark-mode .doc-desc { color: #94a3b8; }
+    body.dark-mode .add-btn { background: #334155; border-color: #475569; color: #94a3b8; }
+    body.dark-mode .add-btn:hover { border-color: #667eea; color: #667eea; background: #1e293b; }
+    body.dark-mode .note-box { background: #334155; border-left-color: #f59e0b; }
+    body.dark-mode .note-box textarea { color: #fcd34d; }
+    body.dark-mode .stat-box { background: #1e293b; border-color: #334155; }
+    body.dark-mode .stat-label { color: #94a3b8; }
+    body.dark-mode input, body.dark-mode select, body.dark-mode textarea { background: #334155; border-color: #475569; color: #f1f5f9; }
+    body.dark-mode .no-data { color: #64748b; }
+    body.dark-mode .add-category-card { background: #1e293b; border-color: #475569; }
+    body.dark-mode .modal { background: #1e293b; }
+    body.dark-mode .modal-title { color: #f1f5f9; }
+    body.dark-mode .form-group input, body.dark-mode .form-group select, body.dark-mode .form-group textarea { background: #334155; border-color: #475569; color: #f1f5f9; }
+
+    @media print {
+      .add-btn, .cat-delete-btn, .doc-delete, .doc-link,
+      #dark-mode-btn, button[onclick*="export"], button[onclick*="print"], label[for="import-file"],
+      #global-search, .stats-bar, #admin-btn, .pending-overlay, .auth-overlay, .company-select-overlay, #user-menu {
+        display: none !important;
+      }
+      .card { break-inside: avoid; box-shadow: none; border: 1px solid #e2e8f0; }
+      body { background: white; padding: 10px; }
+      .note-box textarea { border: 1px solid #e2e8f0; }
+    }
+
+    .admin-badge { position: absolute; top: -6px; right: -6px; background: #ef4444; color: white; font-size: 10px; font-weight: 700; width: 18px; height: 18px; border-radius: 50%; display: none; align-items: center; justify-content: center; }
+    .pending-device-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f8fafc; border-radius: 10px; margin-bottom: 8px; border: 1px solid #e2e8f0; }
+    .pending-device-row:hover { background: #f1f5f9; }
+    .pending-device-info { flex: 1; }
+    .pending-device-name { font-weight: 600; font-size: 13px; color: #1e293b; }
+    .pending-device-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .pending-actions { display: flex; gap: 6px; }
+    .user-menu { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: white; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; color: #1e293b; cursor: pointer; }
+    .user-menu:hover { background: #f8fafc; }
+    .user-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; }
+    .user-avatar.iencc { background: linear-gradient(135deg, #2563eb, #1e40af); }
+    .user-avatar.seb { background: linear-gradient(135deg, #0d9488, #0f766e); }
+  </style>
+</head>
+<body>
+
+  <!-- COMPANY SELECTION -->
+  <div class="company-select-overlay" id="company-select-overlay">
+    <div class="company-select-card">
+      <h2 class="company-select-title">Select Company</h2>
+      <p class="company-select-sub">Choose which employee database to access</p>
+      <div class="company-grid">
+        <div class="company-option iencc" onclick="selectCompany('iencc')">
+          <div class="company-logo iencc">IEN</div>
+          <div class="company-name">IENCC</div>
+          <div class="company-desc">Integrated &amp; Effective<br>Navigation Consultancy Corp</div>
+        </div>
+        <div class="company-option seb" onclick="selectCompany('seb')">
+          <div class="company-logo seb">SEB</div>
+          <div class="company-name">SEB Equipment</div>
+          <div class="company-desc">SEB Equipment and<br>Supply Corp</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTH OVERLAY (Sign In / Sign Up) -->
+  <div class="auth-overlay" id="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-logo" id="auth-logo">LOGO</div>
+      <h2 class="auth-title" id="auth-title">Welcome Back</h2>
+      <p class="auth-sub" id="auth-sub">Sign in to access the employee database</p>
+      <p class="auth-company" id="auth-company-name">COMPANY</p>
+
+      <!-- SIGN IN FORM -->
+      <div id="signin-form">
+        <div class="auth-input-group">
+          <label>Email Address</label>
+          <input type="email" id="auth-email" placeholder="you@company.com" onkeypress="if(event.key==='Enter')doAuthSignIn()">
+        </div>
+        <div class="auth-input-group">
+          <label>Password</label>
+          <input type="password" id="auth-password" placeholder="Enter password" onkeypress="if(event.key==='Enter')doAuthSignIn()">
+        </div>
+        <button class="auth-btn" id="auth-btn-signin" onclick="doAuthSignIn()">Sign In</button>
+        <div class="auth-toggle">
+          No account? <a id="auth-toggle-signup" onclick="toggleAuthMode('signup')">Sign Up</a>
+        </div>
+      </div>
+
+      <!-- SIGN UP FORM -->
+      <div id="signup-form" style="display:none;">
+        <div class="auth-input-group">
+          <label>Full Name</label>
+          <input type="text" id="signup-name" placeholder="Juan Dela Cruz" onkeypress="if(event.key==='Enter')doAuthSignUp()">
+        </div>
+        <div class="auth-input-group">
+          <label>Email Address</label>
+          <input type="email" id="signup-email" placeholder="you@company.com" onkeypress="if(event.key==='Enter')doAuthSignUp()">
+        </div>
+        <div class="auth-input-group">
+          <label>Password</label>
+          <input type="password" id="signup-password" placeholder="Min. 6 characters" onkeypress="if(event.key==='Enter')doAuthSignUp()">
+        </div>
+        <div class="auth-input-group">
+          <label>Confirm Password</label>
+          <input type="password" id="signup-confirm" placeholder="Re-enter password" onkeypress="if(event.key==='Enter')doAuthSignUp()">
+        </div>
+        <button class="auth-btn" id="auth-btn-signup" onclick="doAuthSignUp()">Create Account</button>
+        <div class="auth-toggle">
+          Have an account? <a id="auth-toggle-signin" onclick="toggleAuthMode('signin')">Sign In</a>
+        </div>
+      </div>
+
+      <div class="auth-back" onclick="backToCompanySelect()">&#8592; Back to company selection</div>
+      <p id="auth-error" class="auth-error"></p>
+      <p id="auth-success" class="auth-success"></p>
+    </div>
+  </div>
+
+  <!-- PENDING APPROVAL OVERLAY -->
+  <div class="pending-overlay" id="pending-overlay">
+    <div class="auth-card">
+      <div style="width:56px;height:56px;background:#fef3c7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;">&#9203;</div>
+      <h2 style="font-size:22px;font-weight:700;color:#1e293b;margin-bottom:8px;">Access Pending Approval</h2>
+      <p style="font-size:14px;color:#64748b;margin-bottom:24px;line-height:1.5;">
+        Your account is waiting for administrator verification.<br>
+        Please contact the HR admin to approve your access.
+      </p>
+      <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:24px;text-align:left;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Signed in as</div>
+        <div style="font-size:13px;color:#1e293b;font-weight:500;" id="pending-email"></div>
+        <div style="font-size:12px;color:#64748b;margin-top:4px;">Company: <strong id="pending-company">-</strong></div>
+      </div>
+      <button class="auth-btn" id="pending-check-btn" onclick="checkApprovalStatus()" style="margin-bottom:10px;">&#128260; Check Again</button>
+      <button onclick="doAuthSignOut()" style="width:100%;padding:12px;background:#f1f5f9;color:#475569;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">&#8617; Sign Out</button>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div class="dashboard" id="main-app" style="display:none;">
+    <div class="header" id="app-header">
+      <h1>&#128203; Human Resource Document Template Hub</h1>
+      <p id="app-header-sub">Complete template for Recruitment, Onboarding, Offboarding, 201 File, Discipline, Attendance &amp; Leave Credits</p>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+      <div style="flex:1;min-width:260px;position:relative;">
+        <input type="text" id="global-search" placeholder="&#128269; Search documents across all categories..."
+          style="width:100%;padding:12px 16px;border:1px solid #e2e8f0;border-radius:12px;font-size:14px;font-family:'Inter',sans-serif;outline:none;box-shadow:0 1px 3px rgba(0,0,0,0.05);"
+          oninput="handleSearch(this.value)">
+      </div>
+      <button class="btn" style="background:#1e293b;color:white;position:relative;" onclick="toggleDarkMode()" id="dark-mode-btn">&#127769; Dark</button>
+      <button class="btn" style="background:#dcfce7;color:#166534;" onclick="exportData()">&#128229; Export JSON</button>
+      <label class="btn" style="background:#fef3c7;color:#92400e;cursor:pointer;">
+        &#128228; Import JSON
+        <input type="file" id="import-file" style="display:none;" accept=".json" onchange="importData(this)">
+      </label>
+      <button class="btn" style="background:#fee2e2;color:#991b1b;display:none;position:relative;" onclick="openAdminPanel()" id="admin-btn">
+        &#128276; Admin
+        <span class="admin-badge" id="admin-badge">0</span>
+      </button>
+      <div class="user-menu" id="user-menu" style="display:none;">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <span id="user-name-short">User</span>
+        <button onclick="doAuthSignOut()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:16px;margin-left:4px;">&#10148;</button>
+      </div>
+    </div>
+
+    <div class="stats-bar" id="stats-bar">
+      <div class="stat-box"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Documents</div></div>
+      <div class="stat-box"><div class="stat-num" id="stat-cats">0</div><div class="stat-label">Categories</div></div>
+      <div class="stat-box"><div class="stat-num" id="stat-linked">0</div><div class="stat-label">With Links</div></div>
+      <div class="stat-box"><div class="stat-num" id="stat-notes">0</div><div class="stat-label">Notes Written</div></div>
+    </div>
+
+    <div class="grid" id="main-grid">
+      <div class="card" id="card-recruit">
+        <div class="card-header">
+          <div class="card-icon icon-recruit">&#127919;</div>
+          <div style="flex:1;">
+            <div class="card-title">Recruitment / Hiring Documents</div>
+            <div class="card-subtitle">Pre-employment templates</div>
+          </div>
+          <button class="cat-delete-btn" onclick="deleteBuiltInCategory('recruit', 'Recruitment / Hiring Documents')" title="Hide Category">&#215;</button>
+        </div>
+        <div class="doc-list" id="list-recruit"></div>
+        <div class="add-form" id="form-recruit">
+          <input type="text" id="input-recruit-name" placeholder="Document Name">
+          <input type="text" id="input-recruit-desc" placeholder="Description (optional)">
+          <div class="add-form-actions">
+            <button class="btn-cancel" onclick="toggleForm('recruit')">Cancel</button>
+            <button class="btn-save" onclick="addDoc('recruit')">Save</button>
+          </div>
+        </div>
+        <button class="add-btn" id="btn-recruit" onclick="toggleForm('recruit')"><span>+</span> Add New Document</button>
+        <div class="note-box"><label>&#128221; Notes</label><textarea id="notes-recruit" placeholder="Add recruitment notes here..."></textarea></div>
+      </div>
+
+      <div class="card" id="card-onboard">
+        <div class="card-header">
+          <div class="card-icon icon-onboard">&#128640;</div>
+          <div style="flex:1;"><div class="card-title">Onboarding Documents</div><div class="card-subtitle">New hire welcome package</div></div>
+          <button class="cat-delete-btn" onclick="deleteBuiltInCategory('onboard', 'Onboarding Documents')" title="Hide Category">&#215;</button>
+        </div>
+        <div class="doc-list" id="list-onboard"></div>
+        <div class="add-form" id="form-onboard">
+          <input type="text" id="input-onboard-name" placeholder="Document Name">
+          <input type="text" id="input-onboard-desc" placeholder="Description (optional)">
+          <div class="add-form-actions"><button class="btn-cancel" onclick="toggleForm('onboard')">Cancel</button><button class="btn-save" onclick="addDoc('onboard')">Save</button></div>
+        </div>
+        <button class="add-btn" id="btn-onboard" onclick="toggleForm('onboard')"><span>+</span> Add New Document</button>
+        <div class="note-box"><label>&#128221; Notes</label><textarea id="notes-onboard" placeholder="Add onboarding notes here..."></textarea></div>
+      </div>
+
+      <div class="card" id="card-offboard">
+        <div class="card-header">
+          <div class="card-icon icon-offboard">&#128682;</div>
+          <div style="flex:1;"><div class="card-title">Offboarding Documents</div><div class="card-subtitle">Employee exit process</div></div>
+          <button class="cat-delete-btn" onclick="deleteBuiltInCategory('offboard', 'Offboarding Documents')" title="Hide Category">&#215;</button>
+        </div>
+        <div class="doc-list" id="list-offboard"></div>
+        <div class="add-form" id="form-offboard">
+          <input type="text" id="input-offboard-name" placeholder="Document Name">
+          <input type="text" id="input-offboard-desc" placeholder="Description (optional)">
+          <div class="add-form-actions"><button class="btn-cancel" onclick="toggleForm('offboard')">Cancel</button><button class="btn-save" onclick="addDoc('offboard')">Save</button></div>
+        </div>
+        <button class="add-btn" id="btn-offboard" onclick="toggleForm('offboard')"><span>+</span> Add New Document</button>
+        <div class="note-box"><label>&#128221; Notes</label><textarea id="notes-offboard" placeholder="Add offboarding notes here..."></textarea></div>
+      </div>
+
+      <div class="card" id="card-file">
+        <div class="card-header">
+          <div class="card-icon icon-file">&#128193;</div>
+          <div style="flex:1;"><div class="card-title">Employee 201 File Documents</div><div class="card-subtitle">Complete employee records</div></div>
+          <button class="cat-delete-btn" onclick="deleteBuiltInCategory('file', 'Employee 201 File Documents')" title="Hide Category">&#215;</button>
+        </div>
+        <div class="doc-list" id="list-file"></div>
+        <div class="add-form" id="form-file">
+          <input type="text" id="input-file-name" placeholder="Document Name">
+          <input type="text" id="input-file-desc" placeholder="Description (optional)">
+          <div class="add-form-actions"><button class="btn-cancel" onclick="toggleForm('file')">Cancel</button><button class="btn-save" onclick="addDoc('file')">Save</button></div>
+        </div>
+        <button class="add-btn" id="btn-file" onclick="toggleForm('file')"><span>+</span> Add New Document</button>
+        <div class="note-box"><label>&#128221; Notes</label><textarea id="notes-file" placeholder="Add 201 file notes here..."></textarea></div>
+      </div>
+
+      <div class="card" id="card-discipline">
+        <div class="card-header">
+          <div class="card-icon icon-discipline">&#9878;&#65039;</div>
+          <div style="flex:1;"><div class="card-title">Employee Discipline Documents</div><div class="card-subtitle">Incident &amp; corrective action</div></div>
+          <button class="cat-delete-btn" onclick="deleteBuiltInCategory('discipline', 'Employee Discipline Documents')" title="Hide Category">&#215;</button>
+        </div>
+        <div class="doc-list" id="list-discipline"></div>
+        <div class="add-form" id="form-discipline">
+          <input type="text" id="input-discipline-name" placeholder="Document Name">
+          <input type="text" id="input-discipline-desc" placeholder="Description (optional)">
+          <div class="add-form-actions"><button class="btn-cancel" onclick="toggleForm('discipline')">Cancel</button><button class="btn-save" onclick="addDoc('discipline')">Save</button></div>
+        </div>
+        <button class="add-btn" id="btn-discipline" onclick="toggleForm('discipline')"><span>+</span> Add New Document</button>
+        <div class="note-box"><label>&#128221; Notes</label><textarea id="notes-discipline" placeholder="Add discipline notes here..."></textarea></div>
+      </div>
+
+      <div class="card" id="card-attendance">
+        <div class="card-header">
+          <div class="card-icon icon-attendance">&#9200;</div>
+          <div style="flex:1;"><div class="card-title">Attendance Documents</div><div class="card-subtitle">Timekeeping &amp; attendance records</div></div>
+          <button class="cat-delete-btn" onclick="deleteBuiltInCategory('attendance', 'Attendance Documents')" title="Hide Category">&#215;</button>
+        </div>
+        <div class="doc-list" id="list-attendance"></div>
+        <div class="add-form" id="form-attendance">
+          <input type="text" id="input-attendance-name" placeholder="Document Name">
+          <input type="text" id="input-attendance-desc" placeholder="Description (optional)">
+          <div class="add-form-actions"><button class="btn-cancel" onclick="toggleForm('attendance')">Cancel</button><button class="btn-save" onclick="addDoc('attendance')">Save</button></div>
+        </div>
+        <button class="add-btn" id="btn-attendance" onclick="toggleForm('attendance')"><span>+</span> Add New Document</button>
+        <div class="note-box"><label>&#128221; Notes</label><textarea id="notes-attendance" placeholder="Add attendance notes here..."></textarea></div>
+      </div>
+
+      <div class="card" id="card-leave">
+        <div class="card-header">
+          <div class="card-icon icon-leave">&#127796;</div>
+          <div style="flex:1;"><div class="card-title">Leave Credits Documents</div><div class="card-subtitle">Leave applications &amp; credit tracking</div></div>
+          <button class="cat-delete-btn" onclick="deleteBuiltInCategory('leave', 'Leave Credits Documents')" title="Hide Category">&#215;</button>
+        </div>
+        <div class="doc-list" id="list-leave"></div>
+        <div class="add-form" id="form-leave">
+          <input type="text" id="input-leave-name" placeholder="Document Name">
+          <input type="text" id="input-leave-desc" placeholder="Description (optional)">
+          <div class="add-form-actions"><button class="btn-cancel" onclick="toggleForm('leave')">Cancel</button><button class="btn-save" onclick="addDoc('leave')">Save</button></div>
+        </div>
+        <button class="add-btn" id="btn-leave" onclick="toggleForm('leave')"><span>+</span> Add New Document</button>
+        <div class="note-box"><label>&#128221; Notes</label><textarea id="notes-leave" placeholder="Add leave credits notes here..."></textarea></div>
+      </div>
+
+      <div id="dynamic-categories"></div>
+
+      <div class="card add-category-card" id="card-add-category">
+        <button class="add-category-btn" onclick="openCategoryModal()">
+          <div class="add-category-icon">+</div>
+          <div class="add-category-text">Add New Category</div>
+          <div class="add-category-sub">Create a new document group</div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Link Modal -->
+  <div class="modal-overlay" id="link-modal">
+    <div class="modal">
+      <div class="modal-header"><div class="modal-title" id="link-modal-title">Edit Document Link</div><button class="modal-close" onclick="closeModal('link-modal')">&#215;</button></div>
+      <div class="form-group"><label>Document Name</label><input type="text" id="link-doc-name" readonly></div>
+      <div class="form-group"><label>Link URL</label><input type="url" id="link-url" placeholder="https://docs.google.com/..."></div>
+      <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('link-modal')">Cancel</button><button class="btn-save" onclick="saveLink()">Save Link</button></div>
+    </div>
+  </div>
+
+  <!-- Add Category Modal -->
+  <div class="modal-overlay" id="category-modal">
+    <div class="modal">
+      <div class="modal-header"><div class="modal-title">Add New Category</div><button class="modal-close" onclick="closeModal('category-modal')">&#215;</button></div>
+      <div class="form-group"><label>Category Name</label><input type="text" id="new-cat-name" placeholder="e.g. Payroll Documents"></div>
+      <div class="form-group"><label>Subtitle</label><input type="text" id="new-cat-subtitle" placeholder="e.g. Salary &amp; compensation records"></div>
+      <div class="form-group"><label>Icon</label><select id="new-cat-icon"><option value="&#128196;">&#128196; Document</option><option value="&#128176;">&#128176; Money</option><option value="&#128202;">&#128202; Chart</option><option value="&#128274;">&#128274; Security</option><option value="&#128222;">&#128222; Contact</option><option value="&#127891;">&#127891; Training</option><option value="&#127973;">&#127973; Health</option><option value="&#128221;">&#128221; Form</option><option value="&#128194;">&#128194; Folder</option><option value="&#11088;">&#11088; Star</option></select></div>
+      <div class="form-group"><label>Color Theme</label><select id="new-cat-color"><option value="blue">Blue</option><option value="green">Green</option><option value="red">Red</option><option value="yellow">Yellow</option><option value="purple">Purple</option><option value="indigo">Indigo</option><option value="teal">Teal</option><option value="orange">Orange</option><option value="pink">Pink</option><option value="gray">Gray</option></select></div>
+      <div class="modal-actions"><button class="btn-cancel" onclick="closeModal('category-modal')">Cancel</button><button class="btn-save" onclick="addCategory()">Create Category</button></div>
+    </div>
+  </div>
+
+  <!-- Admin Panel Modal -->
+  <div class="modal-overlay" id="admin-modal">
+    <div class="modal" style="max-width:600px;">
+      <div class="modal-header"><div class="modal-title">&#128272; Admin Panel &mdash; User Access Control</div><button class="modal-close" onclick="closeModal('admin-modal')">&#215;</button></div>
+      <div style="margin-bottom:12px;"><div style="font-size:12px;color:#64748b;">Manage pending access requests and approved users.</div></div>
+      <div id="admin-pending-list"><div class="no-data">Loading users...</div></div>
+    </div>
+  </div>
+
+  <script>
+    // ==================== FIREBASE INIT ====================
+    const firebaseConfig = {
+      apiKey: "AIzaSyCNwgdPiaX9bXEQIVrUlFdXGzbYIWPWW-0",
+      authDomain: "hr-document-hub-ed893.firebaseapp.com",
+      projectId: "hr-document-hub-ed893",
+      storageBucket: "hr-document-hub-ed893.firebasestorage.app",
+      messagingSenderId: "940782500305",
+      appId: "1:940782500305:web:37980edb858426c12548f0"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
+      if (err.code == 'failed-precondition') { console.log('Persistence failed'); }
+      else if (err.code == 'unimplemented') { console.log('Persistence not available'); }
+    });
+
+    // ==================== COMPANY CONFIG ====================
+    const COMPANIES = {
+      iencc: {
+        name: 'IENCC',
+        fullName: 'Integrated and Effective Navigation Consultancy Corp',
+        color: '#2563eb',
+        gradient: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
+        bgClass: 'iencc',
+        hubDocId: 'iencc_hub',
+        usersCollection: 'iencc_users'
+      },
+      seb: {
+        name: 'SEB Equipment',
+        fullName: 'SEB Equipment and Supply Corp',
+        color: '#0d9488',
+        gradient: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+        bgClass: 'seb',
+        hubDocId: 'seb_hub',
+        usersCollection: 'seb_users'
+      }
+    };
+
+    let currentCompany = null;
+    let appData = null;
+    let nextIds = { recruit: 11, onboard: 5, offboard: 7, file: 12, discipline: 6, attendance: 6, leave: 7 };
+    let currentEdit = { section: '', docId: 0 };
+    let unsubscribeData = null;
+    let unsubscribeAdmin = null;
+    let isAdmin = false;
+    let currentUser = null;
+
+    // ==================== COMPANY SELECTION ====================
+    function selectCompany(companyKey) {
+      currentCompany = COMPANIES[companyKey];
+      if (!currentCompany) return;
+
+      // Hide company select, show auth
+      document.getElementById('company-select-overlay').style.display = 'none';
+      const authOverlay = document.getElementById('auth-overlay');
+      authOverlay.classList.add('active', currentCompany.bgClass);
+
+      // Update auth UI with company branding
+      document.getElementById('auth-logo').textContent = currentCompany.name.substring(0, 3).toUpperCase();
+      document.getElementById('auth-logo').className = 'auth-logo ' + currentCompany.bgClass;
+      document.getElementById('auth-company-name').textContent = currentCompany.fullName;
+      document.getElementById('auth-company-name').className = 'auth-company ' + currentCompany.bgClass;
+      document.getElementById('auth-btn-signin').className = 'auth-btn ' + currentCompany.bgClass;
+      document.getElementById('auth-btn-signup').className = 'auth-btn ' + currentCompany.bgClass;
+      document.getElementById('pending-check-btn').className = 'auth-btn ' + currentCompany.bgClass;
+
+      // Update toggle links color
+      document.getElementById('auth-toggle-signup').className = currentCompany.bgClass;
+      document.getElementById('auth-toggle-signin').className = currentCompany.bgClass;
+
+      // Update pending overlay
+      const pendingOverlay = document.getElementById('pending-overlay');
+      pendingOverlay.classList.add(currentCompany.bgClass);
+
+      // Check if already signed in
+      if (auth.currentUser) {
+        handleAuthState(auth.currentUser);
+      }
+    }
+
+    function backToCompanySelect() {
+      document.getElementById('auth-overlay').classList.remove('active');
+      document.getElementById('company-select-overlay').style.display = 'flex';
+      currentCompany = null;
+      toggleAuthMode('signin');
+    }
+
+    // ==================== AUTH FUNCTIONS ====================
+    function toggleAuthMode(mode) {
+      document.getElementById('signin-form').style.display = mode === 'signin' ? 'block' : 'none';
+      document.getElementById('signup-form').style.display = mode === 'signup' ? 'block' : 'none';
+      document.getElementById('auth-error').style.display = 'none';
+      document.getElementById('auth-success').style.display = 'none';
+    }
+
+    function showAuthError(msg) {
+      const el = document.getElementById('auth-error');
+      el.textContent = msg;
+      el.style.display = 'block';
+      document.getElementById('auth-success').style.display = 'none';
+    }
+
+    function showAuthSuccess(msg) {
+      const el = document.getElementById('auth-success');
+      el.textContent = msg;
+      el.style.display = 'block';
+      document.getElementById('auth-error').style.display = 'none';
+    }
+
+    function doAuthSignIn() {
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      if (!email || !password) { showAuthError('Please enter email and password'); return; }
+      auth.signInWithEmailAndPassword(email, password)
+        .catch(err => {
+          let msg = err.message;
+          if (err.code === 'auth/user-not-found') msg = 'No account found. Please sign up first.';
+          if (err.code === 'auth/wrong-password') msg = 'Incorrect password. Please try again.';
+          if (err.code === 'auth/invalid-email') msg = 'Please enter a valid email address.';
+          if (err.code === 'auth/invalid-credential') msg = 'Invalid email or password. Please try again or sign up.';
+          if (err.code === 'auth/too-many-requests') msg = 'Too many failed attempts. Please try again later.';
+          showAuthError(msg);
+        });
+    }
+
+    function doAuthSignUp() {
+      const name = document.getElementById('signup-name').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const confirm = document.getElementById('signup-confirm').value;
+      if (!name || !email || !password) { showAuthError('Please fill in all fields'); return; }
+      if (password.length < 6) { showAuthError('Password must be at least 6 characters'); return; }
+      if (password !== confirm) { showAuthError('Passwords do not match'); return; }
+
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(cred => {
+          // Save user profile with name
+          return db.collection(currentCompany.usersCollection).doc(cred.user.uid).set({
+            email: email,
+            name: name,
+            status: 'pending',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        })
+        .then(() => {
+          showAuthSuccess('Account created! Please wait for admin approval.');
+        })
+        .catch(err => {
+          let msg = err.message;
+          if (err.code === 'auth/email-already-in-use') msg = 'This email is already registered. Please sign in instead.';
+          if (err.code === 'auth/invalid-email') msg = 'Please enter a valid email address.';
+          if (err.code === 'auth/weak-password') msg = 'Password is too weak. Use at least 6 characters.';
+          showAuthError(msg);
+        });
+    }
+
+    function doAuthSignOut() {
+      auth.signOut().then(() => { location.reload(); });
+    }
+
+    // ==================== AUTH STATE LISTENER ====================
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        document.getElementById('auth-overlay').classList.remove('active');
+        if (currentCompany) {
+          document.getElementById('auth-overlay').classList.add('active');
+        }
+        document.getElementById('pending-overlay').classList.remove('active');
+        document.getElementById('main-app').style.display = 'none';
+        document.getElementById('user-menu').style.display = 'none';
+        document.getElementById('admin-btn').style.display = 'none';
+        if (unsubscribeData) { unsubscribeData(); unsubscribeData = null; }
+        if (unsubscribeAdmin) { unsubscribeAdmin(); unsubscribeAdmin = null; }
+        return;
+      }
+      handleAuthState(user);
+    });
+
+    async function handleAuthState(user) {
+      if (!currentCompany) return;
+      currentUser = user;
+      const userRef = db.collection(currentCompany.usersCollection).doc(user.uid);
+      const userDoc = await userRef.get();
+
+      if (!userDoc.exists) {
+        await userRef.set({
+          email: user.email,
+          name: user.displayName || user.email.split('@')[0],
+          status: 'pending',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showPendingScreen(user.email);
+        return;
+      }
+
+      const userData = userDoc.data();
+      await userRef.update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() });
+
+      if (userData.status === 'admin') {
+        isAdmin = true;
+        hideAuthOverlay();
+        showUserMenu(userData.name || user.email);
+        initApp();
+        setupAdminListener();
+      } else if (userData.status === 'approved') {
+        isAdmin = false;
+        hideAuthOverlay();
+        showUserMenu(userData.name || user.email);
+        initApp();
+      } else {
+        showPendingScreen(user.email);
+      }
+    }
+
+    function hideAuthOverlay() {
+      document.getElementById('auth-overlay').classList.remove('active');
+      document.getElementById('pending-overlay').classList.remove('active');
+      document.getElementById('main-app').style.display = 'block';
+    }
+
+    function showPendingScreen(email) {
+      document.getElementById('auth-overlay').classList.remove('active');
+      document.getElementById('pending-overlay').classList.add('active');
+      document.getElementById('pending-email').textContent = email;
+      document.getElementById('pending-company').textContent = currentCompany.fullName;
+    }
+
+    function showUserMenu(name) {
+      document.getElementById('user-menu').style.display = 'flex';
+      document.getElementById('user-name-short').textContent = name;
+      const avatar = document.getElementById('user-avatar');
+      avatar.textContent = name.charAt(0).toUpperCase();
+      avatar.className = 'user-avatar ' + currentCompany.bgClass;
+    }
+
+    async function checkApprovalStatus() {
+      if (!currentUser || !currentCompany) return;
+      const userDoc = await db.collection(currentCompany.usersCollection).doc(currentUser.uid).get();
+      if (!userDoc.exists) return;
+      const data = userDoc.data();
+      if (data.status === 'admin' || data.status === 'approved') {
+        hideAuthOverlay();
+        showUserMenu(data.name || currentUser.email);
+        initApp();
+        if (data.status === 'admin') setupAdminListener();
+      } else {
+        alert('Still pending approval. Please wait for the admin to verify your account.');
+      }
+    }
+
+    // ==================== DATA STORAGE ====================
+    function getDefaultData() {
+      return {
+        recruitment: {
+          documents: [
+            { id: 1, name: 'Interview Script', description: 'Standard interview questions & flow', link: '' },
+            { id: 2, name: 'JD — HR', description: 'Human Resources job description', link: '' },
+            { id: 3, name: 'JD — Licensing', description: 'Licensing specialist job description', link: '' },
+            { id: 4, name: 'JD — Sales & Marketing', description: 'Sales & marketing job description', link: '' },
+            { id: 5, name: 'JD — Accounting', description: 'Accounting job description', link: '' },
+            { id: 6, name: 'JD — Finance', description: 'Finance job description', link: '' },
+            { id: 7, name: 'JD — Bookkeeper', description: 'Bookkeeper job description', link: '' },
+            { id: 8, name: "Message for Leader's Interview", description: 'Invitation for leadership interview', link: '' },
+            { id: 9, name: 'Message for Final Interview', description: 'Final interview invitation template', link: '' },
+            { id: 10, name: 'Background Check', description: 'Background verification form/template', link: '' }
+          ],
+          notes: ''
+        },
+        onboard: {
+          documents: [
+            { id: 1, name: 'Job Description (JD)', description: 'Role overview & responsibilities', link: '' },
+            { id: 2, name: 'Employee Handbook Acknowledgment', description: 'Signed acknowledgment form', link: '' },
+            { id: 3, name: 'Employment Contract', description: 'Contract agreement template', link: '' },
+            { id: 4, name: 'Employee Information Sheet', description: 'Personal data & emergency contacts', link: '' }
+          ],
+          notes: ''
+        },
+        offboard: {
+          documents: [
+            { id: 1, name: 'Acceptance of Resignation', description: 'Formal acceptance letter', link: '' },
+            { id: 2, name: 'Company Asset Return Form', description: 'Inventory of returned items', link: '' },
+            { id: 3, name: 'Company ID Return Confirmation', description: 'ID surrender acknowledgment', link: '' },
+            { id: 4, name: 'Exit Interview Form', description: 'Feedback & exit questionnaire', link: '' },
+            { id: 5, name: 'Certificate of Employment (COE)', description: 'Employment certificate template', link: '' },
+            { id: 6, name: 'Quitclaim and Release Agreement', description: 'Final settlement & release form', link: '' }
+          ],
+          notes: ''
+        },
+        file: {
+          documents: [
+            { id: 1, name: 'Employee Profile', description: 'Personal & professional information', link: '' },
+            { id: 2, name: 'Salary Adjustment Letters', description: 'Salary change documentation', link: '' },
+            { id: 3, name: 'Promotion Letters', description: 'Promotion & advancement records', link: '' },
+            { id: 4, name: 'Transfer / Memo Notices', description: 'Department transfer memos', link: '' },
+            { id: 5, name: 'Performance Evaluation', description: 'Annual/quarterly review forms', link: '' },
+            { id: 6, name: 'Performance Management Documents', description: 'PIP & coaching records', link: '' },
+            { id: 7, name: 'Probationary Evaluation Form', description: 'Probation period assessment', link: '' },
+            { id: 8, name: 'Regularization Evaluation Form', description: 'Regularization assessment', link: '' },
+            { id: 9, name: 'Salary Increase Recommendation', description: 'Raise proposal forms', link: '' },
+            { id: 10, name: 'Disciplinary Records', description: 'Complete discipline history', link: '' },
+            { id: 11, name: 'Warning Records', description: 'Written warning log', link: '' }
+          ],
+          notes: ''
+        },
+        discipline: {
+          documents: [
+            { id: 1, name: 'Incident Report', description: 'Workplace incident documentation', link: '' },
+            { id: 2, name: 'Notice to Explain (NTE)', description: 'Show cause notice template', link: '' },
+            { id: 3, name: 'Disciplinary Action Notice', description: 'Formal disciplinary decision', link: '' },
+            { id: 4, name: 'Warning Letter', description: 'First/second/final warning', link: '' },
+            { id: 5, name: 'Suspension Notice', description: 'Suspension order template', link: '' }
+          ],
+          notes: ''
+        },
+        attendance: {
+          documents: [
+            { id: 1, name: 'Daily Time Record (DTR)', description: 'Employee daily attendance log', link: '' },
+            { id: 2, name: 'Attendance Summary Report', description: 'Monthly attendance summary', link: '' },
+            { id: 3, name: 'Undertime / Tardiness Form', description: 'Late & undertime documentation', link: '' },
+            { id: 4, name: 'Overtime Request Form', description: 'OT authorization & tracking', link: '' },
+            { id: 5, name: 'Shift Schedule Template', description: 'Weekly/monthly shift assignment', link: '' }
+          ],
+          notes: ''
+        },
+        leave: {
+          documents: [
+            { id: 1, name: 'Leave Application Form', description: 'Standard leave request template', link: '' },
+            { id: 2, name: 'Leave Credit Tracker', description: 'Employee leave balance sheet', link: '' },
+            { id: 3, name: 'Sick Leave Certificate', description: 'Medical certificate template', link: '' },
+            { id: 4, name: 'Vacation Leave Request', description: 'VL application & approval', link: '' },
+            { id: 5, name: 'Emergency Leave Form', description: 'Emergency leave documentation', link: '' },
+            { id: 6, name: 'Maternity / Paternity Leave', description: 'Parental leave application', link: '' }
+          ],
+          notes: ''
+        },
+        customCategories: []
+      };
+    }
+
+    function migrateData() {
+      if (!appData) appData = getDefaultData();
+      if (!appData.attendance) appData.attendance = getDefaultData().attendance;
+      if (!appData.leave) appData.leave = getDefaultData().leave;
+      if (!appData.customCategories) appData.customCategories = [];
+    }
+
+    function calculateNextIds() {
+      const sections = ['recruitment', 'onboard', 'offboard', 'file', 'discipline', 'attendance', 'leave'];
+      sections.forEach(key => {
+        const sectionKey = key === 'recruitment' ? 'recruit' : key;
+        const docs = appData[key]?.documents || [];
+        const maxId = docs.reduce((max, d) => Math.max(max, d.id || 0), 0);
+        nextIds[sectionKey] = maxId + 1;
+      });
+      appData.customCategories?.forEach(cat => {
+        const maxId = cat.documents?.reduce((max, d) => Math.max(max, d.id || 0), 0) || 0;
+        cat.nextDocId = maxId + 1;
+      });
+    }
+
+    function saveData() {
+      if (!appData || !currentCompany) return;
+      db.collection('hubData').doc(currentCompany.hubDocId).set(appData)
+        .catch(err => console.error('Save error:', err));
+    }
+
+    // ==================== APP INIT ====================
+    function initApp() {
+      if (!currentCompany) return;
+      const hubRef = db.collection('hubData').doc(currentCompany.hubDocId);
+      if (unsubscribeData) unsubscribeData();
+      unsubscribeData = hubRef.onSnapshot((doc) => {
+        if (doc.exists) {
+          appData = doc.data();
+          migrateData();
+        } else {
+          appData = getDefaultData();
+          hubRef.set(appData);
+        }
+        calculateNextIds();
+        renderAll();
+        loadNotes();
+        renderCustomCategories();
+        updateHeaderTheme();
+      }, (err) => { console.error('Snapshot error:', err); });
+    }
+
+    function updateHeaderTheme() {
+      const header = document.getElementById('app-header');
+      header.className = 'header ' + currentCompany.bgClass;
+      document.getElementById('app-header-sub').textContent = currentCompany.fullName + ' — Complete template for Recruitment, Onboarding, Offboarding, 201 File, Discipline, Attendance & Leave Credits';
+    }
+
+    function renderAll() {
+      if (!appData) return;
+      renderSection('recruit', appData.recruitment.documents);
+      renderSection('onboard', appData.onboard.documents);
+      renderSection('offboard', appData.offboard.documents);
+      renderSection('file', appData.file.documents);
+      renderSection('discipline', appData.discipline.documents);
+      renderSection('attendance', appData.attendance.documents);
+      renderSection('leave', appData.leave.documents);
+      updateStats();
+    }
+
+    // ==================== RENDER DOCUMENTS ====================
+    function renderSection(section, documents) {
+      const list = document.getElementById('list-' + section);
+      if (!list) return;
+      let html = '';
+      (documents || []).forEach((doc, index) => {
+        const hasLink = doc.link && doc.link.trim() !== '';
+        html += `
+          <div class="doc-item" id="doc-${section}-${doc.id}">
+            <div class="doc-num">${index + 1}</div>
+            <div class="doc-info">
+              <div class="doc-name">${escapeHtml(doc.name)}</div>
+              <div class="doc-desc">${escapeHtml(doc.description || 'No description')}</div>
+            </div>
+            <div class="doc-actions">
+              ${hasLink 
+                ? `<a href="${escapeHtml(doc.link)}" target="_blank" class="doc-link has-link">Open &rarr;</a>
+                   <button class="doc-link" onclick="openLinkModal('${section}', ${doc.id})" style="margin-left:4px;">Edit</button>
+                   <button class="doc-link" onclick="printDocument('${escapeHtml(doc.link)}')" style="margin-left:4px;background:#dbeafe;color:#1e40af;">Print</button>`
+                : `<button class="doc-link empty" onclick="openLinkModal('${section}', ${doc.id})">+ Add Link</button>`
+              }
+              <button class="doc-delete" onclick="deleteDoc('${section}', ${doc.id})" title="Delete">&times;</button>
+            </div>
+          </div>
+        `;
+      });
+      list.innerHTML = html || '<div class="no-data">No documents yet</div>';
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ==================== ADD DOCUMENT ====================
+    function toggleForm(section) {
+      const form = document.getElementById('form-' + section);
+      const btn = document.getElementById('btn-' + section);
+      if (!form || !btn) return;
+      if (form.classList.contains('active')) {
+        form.classList.remove('active'); btn.style.display = 'flex';
+      } else {
+        document.querySelectorAll('.add-form').forEach(f => f.classList.remove('active'));
+        document.querySelectorAll('.add-btn').forEach(b => b.style.display = 'flex');
+        form.classList.add('active'); btn.style.display = 'none';
+        setTimeout(() => { const input = document.getElementById('input-' + section + '-name'); if (input) input.focus(); }, 100);
+      }
+    }
+
+    function addDoc(section) {
+      const nameInput = document.getElementById('input-' + section + '-name');
+      const descInput = document.getElementById('input-' + section + '-desc');
+      const name = nameInput ? nameInput.value.trim() : '';
+      const desc = descInput ? descInput.value.trim() : '';
+      if (!name) {
+        if (nameInput) { nameInput.style.borderColor = '#ef4444'; setTimeout(() => nameInput.style.borderColor = '#c7d2fe', 2000); }
+        return;
+      }
+      if (section.startsWith('custom_')) {
+        const cat = appData.customCategories.find(c => c.id === section);
+        if (cat) {
+          const newId = (cat.nextDocId || 1); cat.nextDocId = newId + 1;
+          cat.documents.push({ id: newId, name: name, description: desc || 'No description', link: '' });
+          saveData(); renderCustomCategoryCard(cat);
+        }
+      } else {
+        const sectionMap = { recruit: 'recruitment', onboard: 'onboard', offboard: 'offboard', file: 'file', discipline: 'discipline', attendance: 'attendance', leave: 'leave' };
+        const dataKey = sectionMap[section];
+        const newId = nextIds[section]++;
+        appData[dataKey].documents.push({ id: newId, name: name, description: desc || 'No description', link: '' });
+        saveData(); renderSection(section, appData[dataKey].documents);
+      }
+      if (nameInput) nameInput.value = '';
+      if (descInput) descInput.value = '';
+      toggleForm(section);
+    }
+
+    // ==================== DELETE DOCUMENT ====================
+    function deleteDoc(section, docId) {
+      if (!confirm('Are you sure you want to delete this document?')) return;
+      if (section.startsWith('custom_')) {
+        const cat = appData.customCategories.find(c => c.id === section);
+        if (cat) { cat.documents = cat.documents.filter(d => d.id !== docId); saveData(); renderCustomCategoryCard(cat); }
+      } else {
+        const sectionMap = { recruit: 'recruitment', onboard: 'onboard', offboard: 'offboard', file: 'file', discipline: 'discipline', attendance: 'attendance', leave: 'leave' };
+        const dataKey = sectionMap[section];
+        appData[dataKey].documents = appData[dataKey].documents.filter(d => d.id !== docId);
+        saveData(); renderSection(section, appData[dataKey].documents);
+      }
+    }
+
+    // ==================== LINK MODAL ====================
+    function openLinkModal(section, docId) {
+      let doc;
+      if (section.startsWith('custom_')) {
+        const cat = appData.customCategories.find(c => c.id === section);
+        doc = cat ? cat.documents.find(d => d.id === docId) : null;
+      } else {
+        const sectionMap = { recruit: 'recruitment', onboard: 'onboard', offboard: 'offboard', file: 'file', discipline: 'discipline', attendance: 'attendance', leave: 'leave' };
+        const dataKey = sectionMap[section];
+        doc = appData[dataKey].documents.find(d => d.id === docId);
+      }
+      if (!doc) return;
+      currentEdit = { section: section, docId: docId };
+      document.getElementById('link-doc-name').value = doc.name;
+      document.getElementById('link-url').value = doc.link || '';
+      document.getElementById('link-modal-title').textContent = doc.link ? 'Edit Document Link' : 'Add Document Link';
+      openModal('link-modal');
+    }
+
+    function saveLink() {
+      const url = document.getElementById('link-url').value.trim();
+      if (!url) { alert('Please enter a URL'); return; }
+      if (currentEdit.section.startsWith('custom_')) {
+        const cat = appData.customCategories.find(c => c.id === currentEdit.section);
+        const doc = cat ? cat.documents.find(d => d.id === currentEdit.docId) : null;
+        if (doc) { doc.link = url; saveData(); renderCustomCategoryCard(cat); }
+      } else {
+        const sectionMap = { recruit: 'recruitment', onboard: 'onboard', offboard: 'offboard', file: 'file', discipline: 'discipline', attendance: 'attendance', leave: 'leave' };
+        const dataKey = sectionMap[currentEdit.section];
+        const doc = appData[dataKey].documents.find(d => d.id === currentEdit.docId);
+        if (doc) { doc.link = url; saveData(); renderSection(currentEdit.section, appData[dataKey].documents); }
+      }
+      closeModal('link-modal');
+    }
+
+    // ==================== NOTES ====================
+    function loadNotes() {
+      if (!appData) return;
+      document.getElementById('notes-recruit').value = appData.recruitment.notes || '';
+      document.getElementById('notes-onboard').value = appData.onboard.notes || '';
+      document.getElementById('notes-offboard').value = appData.offboard.notes || '';
+      document.getElementById('notes-file').value = appData.file.notes || '';
+      document.getElementById('notes-discipline').value = appData.discipline.notes || '';
+      document.getElementById('notes-attendance').value = appData.attendance.notes || '';
+      document.getElementById('notes-leave').value = appData.leave.notes || '';
+    }
+
+    ['recruit', 'onboard', 'offboard', 'file', 'discipline', 'attendance', 'leave'].forEach(section => {
+      const el = document.getElementById('notes-' + section);
+      if (el) {
+        el.addEventListener('blur', function() {
+          const sectionMap = { recruit: 'recruitment', onboard: 'onboard', offboard: 'offboard', file: 'file', discipline: 'discipline', attendance: 'attendance', leave: 'leave' };
+          if (appData && appData[sectionMap[section]]) { appData[sectionMap[section]].notes = this.value; saveData(); }
+        });
+      }
+    });
+
+    // ==================== CUSTOM CATEGORIES ====================
+    function openCategoryModal() {
+      document.getElementById('new-cat-name').value = '';
+      document.getElementById('new-cat-subtitle').value = '';
+      document.getElementById('new-cat-icon').value = '&#128196;';
+      document.getElementById('new-cat-color').value = 'blue';
+      openModal('category-modal');
+    }
+
+    function addCategory() {
+      const name = document.getElementById('new-cat-name').value.trim();
+      const subtitle = document.getElementById('new-cat-subtitle').value.trim();
+      const icon = document.getElementById('new-cat-icon').value;
+      const color = document.getElementById('new-cat-color').value;
+      if (!name) { alert('Please enter a category name'); return; }
+      const catId = 'custom_' + Date.now();
+      const newCat = { id: catId, name: name, subtitle: subtitle || 'Custom document category', icon: icon, color: color, documents: [], notes: '', nextDocId: 1 };
+      appData.customCategories.push(newCat);
+      saveData(); renderCustomCategoryCard(newCat); closeModal('category-modal');
+    }
+
+    function renderCustomCategories() {
+      const container = document.getElementById('dynamic-categories');
+      if (!container || !appData) return;
+      const existingCards = container.querySelectorAll('.card[id^="card-custom_"]');
+      existingCards.forEach(card => {
+        const catId = card.id.replace('card-', '');
+        if (!appData.customCategories.find(c => c.id === catId)) card.remove();
+      });
+      appData.customCategories.forEach(cat => { renderCustomCategoryCard(cat); });
+    }
+
+    function renderCustomCategoryCard(cat) {
+      const container = document.getElementById('dynamic-categories');
+      if (!container) return;
+      let existingCard = document.getElementById('card-' + cat.id);
+      const colorMap = { blue: 'icon-blue', green: 'icon-green', red: 'icon-red', yellow: 'icon-yellow', purple: 'icon-purple', indigo: 'icon-indigo', teal: 'icon-teal', orange: 'icon-orange', pink: 'icon-pink', gray: 'icon-gray' };
+      let docsHtml = '';
+      (cat.documents || []).forEach((doc, index) => {
+        const hasLink = doc.link && doc.link.trim() !== '';
+        docsHtml += `
+          <div class="doc-item" id="doc-${cat.id}-${doc.id}">
+            <div class="doc-num">${index + 1}</div>
+            <div class="doc-info">
+              <div class="doc-name">${escapeHtml(doc.name)}</div>
+              <div class="doc-desc">${escapeHtml(doc.description || 'No description')}</div>
+            </div>
+            <div class="doc-actions">
+              ${hasLink 
+                ? `<a href="${escapeHtml(doc.link)}" target="_blank" class="doc-link has-link">Open &rarr;</a>
+                   <button class="doc-link" onclick="openLinkModal('${cat.id}', ${doc.id})" style="margin-left:4px;">Edit</button>
+                   <button class="doc-link" onclick="printDocument('${escapeHtml(doc.link)}')" style="margin-left:4px;background:#dbeafe;color:#1e40af;">Print</button>`
+                : `<button class="doc-link empty" onclick="openLinkModal('${cat.id}', ${doc.id})">+ Add Link</button>`
+              }
+              <button class="doc-delete" onclick="deleteDoc('${cat.id}', ${doc.id})" title="Delete">&times;</button>
+            </div>
+          </div>
+        `;
+      });
+      const cardHtml = `
+        <div class="card" id="card-${cat.id}">
+          <div class="card-header">
+            <div class="card-icon ${colorMap[cat.color] || 'icon-blue'}">${cat.icon}</div>
+            <div style="flex:1;"><div class="card-title">${escapeHtml(cat.name)}</div><div class="card-subtitle">${escapeHtml(cat.subtitle)}</div></div>
+            <button class="cat-delete-btn" onclick="deleteCategory('${cat.id}')" title="Delete Category">&times;</button>
+          </div>
+          <div class="doc-list" id="list-${cat.id}">${docsHtml || '<div class="no-data">No documents yet</div>'}</div>
+          <div class="add-form" id="form-${cat.id}">
+            <input type="text" id="input-${cat.id}-name" placeholder="Document Name">
+            <input type="text" id="input-${cat.id}-desc" placeholder="Description (optional)">
+            <div class="add-form-actions"><button class="btn-cancel" onclick="toggleForm('${cat.id}')">Cancel</button><button class="btn-save" onclick="addDoc('${cat.id}')">Save</button></div>
+          </div>
+          <button class="add-btn" id="btn-${cat.id}" onclick="toggleForm('${cat.id}')"><span>+</span> Add New Document</button>
+          <div class="note-box"><label>&#128221; Notes</label><textarea id="notes-${cat.id}" placeholder="Add notes here...">${escapeHtml(cat.notes || '')}</textarea></div>
+        </div>
+      `;
+      if (existingCard) { existingCard.outerHTML = cardHtml; }
+      else { const wrapper = document.createElement('div'); wrapper.innerHTML = cardHtml; container.appendChild(wrapper.firstElementChild); }
+      const notesEl = document.getElementById('notes-' + cat.id);
+      if (notesEl) { notesEl.addEventListener('blur', function() { cat.notes = this.value; saveData(); }); }
+    }
+
+    function deleteBuiltInCategory(sectionId, categoryName) {
+      if (!confirm('Hide "' + categoryName + '"? You can restore it later by refreshing the page. The data will remain saved.')) return;
+      const card = document.getElementById('card-' + sectionId);
+      if (card) { card.style.transition = 'all 0.3s'; card.style.opacity = '0'; card.style.transform = 'scale(0.9)'; setTimeout(() => card.remove(), 300); }
+    }
+
+    function deleteCategory(catId) {
+      if (!confirm('Are you sure you want to delete this entire category? All documents inside will be lost.')) return;
+      appData.customCategories = appData.customCategories.filter(c => c.id !== catId);
+      saveData();
+      const card = document.getElementById('card-' + catId);
+      if (card) { card.style.transition = 'all 0.3s'; card.style.opacity = '0'; card.style.transform = 'scale(0.9)'; setTimeout(() => card.remove(), 300); }
+    }
+
+    // ==================== MODAL UTILITIES ====================
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+      overlay.addEventListener('click', function(e) { if (e.target === this) closeModal(this.id); });
+    });
+    document.getElementById('link-url').addEventListener('keypress', function(e) { if (e.key === 'Enter') saveLink(); });
+
+    // ==================== SEARCH ====================
+    function handleSearch(query) {
+      const q = query.toLowerCase().trim();
+      const allDocItems = document.querySelectorAll('.doc-item');
+      const allCards = document.querySelectorAll('.card:not(.add-category-card)');
+      if (!q) {
+        allDocItems.forEach(item => { item.classList.remove('hidden-by-search', 'search-highlight'); });
+        allCards.forEach(card => card.style.display = '');
+        return;
+      }
+      allDocItems.forEach(item => {
+        const name = item.querySelector('.doc-name')?.textContent.toLowerCase() || '';
+        const desc = item.querySelector('.doc-desc')?.textContent.toLowerCase() || '';
+        if (name.includes(q) || desc.includes(q)) { item.classList.remove('hidden-by-search'); item.classList.add('search-highlight'); }
+        else { item.classList.add('hidden-by-search'); item.classList.remove('search-highlight'); }
+      });
+      allCards.forEach(card => {
+        const visibleDocs = card.querySelectorAll('.doc-item:not(.hidden-by-search)');
+        if (visibleDocs.length === 0 && card.querySelector('.doc-list')) { card.style.display = 'none'; }
+        else { card.style.display = ''; }
+      });
+    }
+
+    // ==================== STATS ====================
+    function updateStats() {
+      if (!appData) return;
+      let totalDocs = 0, linkedDocs = 0, categoriesWithNotes = 0;
+      const sections = ['recruitment', 'onboard', 'offboard', 'file', 'discipline', 'attendance', 'leave'];
+      sections.forEach(key => {
+        if (appData[key]) {
+          totalDocs += appData[key].documents.length;
+          linkedDocs += appData[key].documents.filter(d => d.link && d.link.trim()).length;
+          if (appData[key].notes && appData[key].notes.trim()) categoriesWithNotes++;
+        }
+      });
+      appData.customCategories.forEach(cat => {
+        totalDocs += cat.documents.length;
+        linkedDocs += cat.documents.filter(d => d.link && d.link.trim()).length;
+        if (cat.notes && cat.notes.trim()) categoriesWithNotes++;
+      });
+      const totalCats = sections.length + appData.customCategories.length;
+      document.getElementById('stat-total').textContent = totalDocs;
+      document.getElementById('stat-cats').textContent = totalCats;
+      document.getElementById('stat-linked').textContent = linkedDocs;
+      document.getElementById('stat-notes').textContent = categoriesWithNotes;
+    }
+
+    // ==================== DARK MODE ====================
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+      const btn = document.getElementById('dark-mode-btn');
+      if (document.body.classList.contains('dark-mode')) {
+        btn.innerHTML = '&#9728;&#65039; Light';
+        localStorage.setItem('hrHubDarkMode', 'true');
+      } else {
+        btn.innerHTML = '&#127769; Dark';
+        localStorage.setItem('hrHubDarkMode', 'false');
+      }
+    }
+
+    // ==================== EXPORT / IMPORT ====================
+    function exportData() {
+      if (!appData) return;
+      const dataStr = JSON.stringify(appData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'hr-hub-backup-' + currentCompany.name.toLowerCase().replace(/\s+/g, '-') + '-' + new Date().toISOString().split('T')[0] + '.json';
+      a.click(); URL.revokeObjectURL(url);
+    }
+
+    function importData(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (confirm('This will replace all current data. Are you sure?')) {
+            appData = data; saveData(); location.reload();
+          }
+        } catch (err) { alert('Invalid JSON file'); }
+      };
+      reader.readAsText(file); input.value = '';
+    }
+
+    // ==================== PRINT ====================
+    function printDocument(url) {
+      if (!url) { alert('No document link to print'); return; }
+      if (url.includes('docs.google.com/spreadsheets')) {
+        const sheetId = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (sheetId && sheetId[1]) url = `https://docs.google.com/spreadsheets/d/${sheetId[1]}/export?format=pdf`;
+      }
+      if (url.includes('docs.google.com/document')) {
+        const docId = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (docId && docId[1]) url = `https://docs.google.com/document/d/${docId[1]}/export?format=pdf`;
+      }
+      const printWindow = window.open(url, '_blank');
+      if (printWindow) { setTimeout(() => { try { printWindow.print(); } catch(e) {} }, 2000); }
+    }
+
+    // ==================== ADMIN PANEL ====================
+    function setupAdminListener() {
+      if (!isAdmin || !currentCompany) return;
+      document.getElementById('admin-btn').style.display = 'inline-flex';
+      if (unsubscribeAdmin) unsubscribeAdmin();
+      const pendingQuery = db.collection(currentCompany.usersCollection).where('status', '==', 'pending');
+      unsubscribeAdmin = pendingQuery.onSnapshot(snapshot => {
+        const count = snapshot.size;
+        const badge = document.getElementById('admin-badge');
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'flex' : 'none';
+      });
+    }
+
+    function openAdminPanel() {
+      const container = document.getElementById('admin-pending-list');
+      container.innerHTML = '<div class="no-data">Loading users...</div>';
+      openModal('admin-modal');
+      db.collection(currentCompany.usersCollection).orderBy('createdAt', 'desc').get().then(snapshot => {
+        if (snapshot.empty) { container.innerHTML = '<div class="no-data">No users found</div>'; return; }
+        let html = '';
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const status = d.status || 'unknown';
+          let dateStr = 'Unknown';
+          if (d.createdAt && d.createdAt.toDate) dateStr = d.createdAt.toDate().toLocaleString();
+          const isPending = status === 'pending';
+          html += `
+            <div class="pending-device-row">
+              <div class="pending-device-info">
+                <div class="pending-device-name">${escapeHtml(d.name || d.email || 'Unknown')}</div>
+                <div class="pending-device-meta">${escapeHtml(d.email || '')} &bull; Status: <strong>${status.toUpperCase()}</strong> &bull; Joined: ${dateStr}</div>
+              </div>
+              <div class="pending-actions">
+                ${isPending ? `
+                  <button class="doc-link has-link" onclick="approveUser('${doc.id}', 'approved')">Approve</button>
+                  <button class="doc-link" style="background:#fee2e2;color:#991b1b;" onclick="approveUser('${doc.id}', 'rejected')">Reject</button>
+                ` : `
+                  <button class="doc-link empty" onclick="approveUser('${doc.id}', 'pending')">Reset</button>
+                `}
+              </div>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      }).catch(err => { console.error(err); container.innerHTML = '<div class="no-data">Error loading users</div>'; });
+    }
+
+    function approveUser(userId, status) {
+      db.collection(currentCompany.usersCollection).doc(userId).update({
+        status: status,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => { openAdminPanel(); }).catch(err => { console.error(err); alert('Error updating user status'); });
+    }
+
+    // ==================== INIT ====================
+    document.addEventListener('DOMContentLoaded', function() {
+      if (localStorage.getItem('hrHubDarkMode') === 'true') {
+        document.body.classList.add('dark-mode');
+        const btn = document.getElementById('dark-mode-btn');
+        if (btn) btn.innerHTML = '&#9728;&#65039; Light';
+      }
+    });
+  </script>
+</body>
+</html>
